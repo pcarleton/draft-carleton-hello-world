@@ -142,39 +142,39 @@ Table of Contents
    [AIMS] remains the base specification for anything not restated here.
    This profile constrains [AIMS] as follows:
 
-      +================+=========+=================================+
-      | AIMS component | Here    | Relationship                    |
-      +================+=========+=================================+
-      | Identifiers    | Section | Constrained: opaque, immutable, |
-      | (Sec. 6)       | 4       | non-reassignable agent          |
-      |                |         | identifier per [WIMSE-ID],      |
-      |                |         | carried as sub                  |
-      +----------------+---------+---------------------------------+
-      | Credentials    | Section | Constrained: [RFC7523] JWT      |
-      | (Sec. 7),      | 5       | authorization grant             |
-      | Authentication |         | (assertion), platform-signed;   |
-      | (Sec. 9)       |         | no per-agent credential; public |
-      |                |         | client in the simple case       |
-      +----------------+---------+---------------------------------+
-      | Credential     | Section | Constrained: platform-internal  |
-      | Provisioning   | 7       |                                 |
-      | (Sec. 8)       |         |                                 |
-      +----------------+---------+---------------------------------+
-      | Authorization  | Section | Added: standard property        |
-      | (Sec. 10, case | 8       | claims; by-reference trust      |
-      | 10.4.2)        |         | (Section 6)                     |
-      +----------------+---------+---------------------------------+
-      | Monitoring/    | Section | TODO                            |
-      | Remediation    | 10      |                                 |
-      | (Sec. 11)      |         |                                 |
-      +----------------+---------+---------------------------------+
-      | Policy (Sec.   | --      | Inherited                       |
-      | 12),           |         |                                 |
-      | Compliance     |         |                                 |
-      | (Sec. 13)      |         |                                 |
-      +----------------+---------+---------------------------------+
+      +================+=========+==================================+
+      | AIMS component | Here    | Relationship                     |
+      +================+=========+==================================+
+      | Identifiers    | Section | Constrained: opaque, immutable,  |
+      | (Sec. 6)       | 4       | non-reassignable agent           |
+      |                |         | identifier per [WIMSE-ID],       |
+      |                |         | carried as sub                   |
+      +----------------+---------+----------------------------------+
+      | Credentials    | Section | Constrained: [RFC7523] JWT       |
+      | (Sec. 7),      | 5       | authorization grant (assertion), |
+      | Authentication |         | platform-signed; no per-agent    |
+      | (Sec. 9)       |         | credential; client identity      |
+      |                |         | deliberately unspecified         |
+      +----------------+---------+----------------------------------+
+      | Credential     | Section | Constrained: platform-internal   |
+      | Provisioning   | 7       |                                  |
+      | (Sec. 8)       |         |                                  |
+      +----------------+---------+----------------------------------+
+      | Authorization  | Section | Added: standard property claims; |
+      | (Sec. 10, case | 8       | by-reference trust (Section 6)   |
+      | 10.4.2)        |         |                                  |
+      +----------------+---------+----------------------------------+
+      | Monitoring/    | Section | TODO                             |
+      | Remediation    | 10      |                                  |
+      | (Sec. 11)      |         |                                  |
+      +----------------+---------+----------------------------------+
+      | Policy (Sec.   | --      | Inherited                        |
+      | 12),           |         |                                  |
+      | Compliance     |         |                                  |
+      | (Sec. 13)      |         |                                  |
+      +----------------+---------+----------------------------------+
 
-                                 Table 1
+                                  Table 1
 
 1.2.  Relationship to WIMSE and SPIFFE
 
@@ -231,8 +231,7 @@ Table of Contents
    An Agent's identity has three units: the tenancy's issuer, which
    signs assertions about the Agent; the Agent Identifier, opaque,
    unique within the issuer, immutable, and never reassigned, carried as
-   the assertion's sub and used verbatim as the OAuth client_id where
-   one is required (Section 5); and claims, carrying everything else
+   the assertion's sub (Section 5); and claims, carrying everything else
    (Section 8).  Renaming an Agent MUST NOT change its Agent Identifier.
    Resource Servers MUST NOT parse or pattern-match the Agent Identifier
    for authorization; single-agent policy is an exact match on it.
@@ -248,14 +247,17 @@ Table of Contents
    in the sense of [RFC7521], Section 5.2.  The token request carries
    grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in
    the assertion parameter, and the target resource in the resource
-   parameter [RFC8707].  In the simple case the Agent is a public
-   client: client_id is the Agent Identifier and no client
-   authentication is performed.  Deployments that require client
-   authentication use a Client ID Metadata Document [CIMD] with
-   private_key_jwt.  TODO: client authentication is redundant while the
-   assertion issuer is the Platform itself; it becomes load-bearing if
-   the issuer is the customer's Enterprise IdP and the Platform obtains
-   the assertion by token exchange [RFC8693] with the IdP.
+   parameter [RFC8707].  This profile deliberately does not specify the
+   OAuth client identity or attach semantics to client_id.  In the
+   simplest deployment the token request is made without client
+   authentication.  Deployments MAY layer client authentication on top
+   -- for example, the Platform authenticating as an OAuth client in its
+   own right with a Client ID Metadata Document [CIMD] and a
+   private_key_jwt client assertion -- a composition that becomes
+   natural when the authorization grant's issuer is the customer's
+   Enterprise IdP rather than the Platform (obtained, e.g., by token
+   exchange [RFC8693] with the IdP).  This document intentionally leaves
+   that composition open rather than fully specifying it (Section 10).
 
    In the assertion, iss is the tenancy's issuer identifier, sub is the
    Agent Identifier, and aud is the authorization server's token
@@ -268,6 +270,38 @@ Table of Contents
    Authorization servers supporting this profile MUST include
    urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
    in their metadata [RFC8414].
+
+   Figure 1 shows an example token request (with extra line breaks for
+   display purposes only):
+
+   POST /token HTTP/1.1
+   Host: as.saas.example
+   Content-Type: application/x-www-form-urlencoded
+
+   grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+   &assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQi...
+   &resource=https%3A%2F%2Fapi.saas.example%2F
+
+                      Figure 1: Example token request
+
+   Figure 2 shows the decoded claims of the assertion carried in that
+   request; namespace, groups, roles, and ctx are Agent Properties
+   (Section 8):
+
+   {
+     "iss": "https://agents.platform.example/acme",
+     "sub": "agent_7f3d9a2e",
+     "aud": "https://as.saas.example/token",
+     "exp": 1785271980,
+     "iat": 1785271680,
+     "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+     "namespace": "acme/support",
+     "groups": ["support-eng"],
+     "roles": ["responder"],
+     "ctx": "channel:C0123456789"
+   }
+
+                     Figure 2: Example assertion claims
 
    No refresh tokens are issued; access tokens are short-lived and
    audience-restricted [RFC8707].  Assertion lifetimes SHOULD be as
@@ -297,12 +331,13 @@ Table of Contents
 7.  Agent Instantiation
 
    Creating an Agent is Platform-internal and MUST NOT require any
-   interaction with the Resource Server, its authorization server, an
-   Enterprise IdP, or the Customer Administrator.  A Resource Server
-   MUST accept a previously-unseen Agent Identifier presented as sub
-   under an allowlisted issuer and MUST authorize it via Section 8
-   rather than by identifier structure.  Agents are not dynamically
-   registered clients [RFC7591].
+   ahead-of-time interaction with the Resource Server, its authorization
+   server, an Enterprise IdP, or the Customer Administrator.  A Resource
+   Server first learns that an Agent exists when the Agent presents its
+   first authorization grant: it MUST accept a previously-unseen Agent
+   Identifier presented as sub under an allowlisted issuer and MUST
+   authorize it via Section 8 rather than by identifier structure.
+   Agents are not dynamically registered clients [RFC7591].
 
    Optionally, a Platform MAY project Agents into an Enterprise IdP
    (e.g., as [SCIM-AGENT] resources) for inventory and lifecycle
@@ -337,7 +372,8 @@ Table of Contents
    *  Issuer placement: issuer operated by the Platform versus by the
       Enterprise IdP, with the Platform obtaining assertions by token
       exchange [RFC8693] with the IdP; client authentication is
-      redundant in the former case and load-bearing in the latter.
+      redundant in the former case and load-bearing in the latter; what,
+      if anything, client_id means in each case.
 
    *  Staleness signaling in place of per-agent revocation (issuer- or
       Property-scoped epoch versus event push versus lifetime alone).

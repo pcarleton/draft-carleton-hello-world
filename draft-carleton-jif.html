@@ -1302,7 +1302,7 @@ profile constrains <span>[<a href="#AIMS" class="cite xref">AIMS</a>]</span> as 
               <td class="text-left" rowspan="1" colspan="1">
                 <a href="#authorization-grant" class="auto internal xref">Section 5</a>
 </td>
-              <td class="text-left" rowspan="1" colspan="1">Constrained: <span>[<a href="#RFC7523" class="cite xref">RFC7523</a>]</span> JWT authorization grant (assertion), platform-signed; no per-agent credential; public client in the simple case</td>
+              <td class="text-left" rowspan="1" colspan="1">Constrained: <span>[<a href="#RFC7523" class="cite xref">RFC7523</a>]</span> JWT authorization grant (assertion), platform-signed; no per-agent credential; client identity deliberately unspecified</td>
             </tr>
             <tr>
               <td class="text-left" rowspan="1" colspan="1">Credential Provisioning (Sec. 8)</td>
@@ -1425,8 +1425,7 @@ Resource Server (<a href="#instantiation" class="auto internal xref">Section 7</
       </h2>
 <p id="section-4-1">An Agent's identity has three units: the tenancy's issuer, which signs
 assertions about the Agent; the Agent Identifier, opaque, unique within the
-issuer, immutable, and never reassigned, carried as the assertion's sub and
-used verbatim as the OAuth client_id where one is required
+issuer, immutable, and never reassigned, carried as the assertion's sub
 (<a href="#authorization-grant" class="auto internal xref">Section 5</a>); and claims, carrying everything else
 (<a href="#properties" class="auto internal xref">Section 8</a>).  Renaming an Agent <span class="bcp14">MUST NOT</span> change its Agent Identifier.
 Resource Servers <span class="bcp14">MUST NOT</span> parse or pattern-match the Agent Identifier for
@@ -1445,13 +1444,16 @@ Section 2.1, issued by the Platform as a third party in the sense of
 <span>[<a href="#RFC7521" class="cite xref">RFC7521</a>]</span>, Section 5.2.  The token request carries
 grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in the
 assertion parameter, and the target resource in the resource parameter
-<span>[<a href="#RFC8707" class="cite xref">RFC8707</a>]</span>.  In the simple case the Agent is a public client: client_id is
-the Agent Identifier and no client authentication is performed.  Deployments
-that require client authentication use a Client ID Metadata Document
-<span>[<a href="#CIMD" class="cite xref">CIMD</a>]</span> with private_key_jwt.  TODO: client authentication is redundant
-while the assertion issuer is the Platform itself; it becomes load-bearing if
-the issuer is the customer's Enterprise IdP and the Platform obtains the
-assertion by token exchange <span>[<a href="#RFC8693" class="cite xref">RFC8693</a>]</span> with the IdP.<a href="#section-5-1" class="pilcrow">¶</a></p>
+<span>[<a href="#RFC8707" class="cite xref">RFC8707</a>]</span>.  This profile deliberately does not specify the OAuth client
+identity or attach semantics to client_id.  In the simplest deployment the
+token request is made without client authentication.  Deployments <span class="bcp14">MAY</span> layer
+client authentication on top -- for example, the Platform authenticating as
+an OAuth client in its own right with a Client ID Metadata Document <span>[<a href="#CIMD" class="cite xref">CIMD</a>]</span>
+and a private_key_jwt client assertion -- a composition that becomes natural
+when the authorization grant's issuer is the customer's Enterprise IdP
+rather than the Platform (obtained, e.g., by token exchange <span>[<a href="#RFC8693" class="cite xref">RFC8693</a>]</span> with
+the IdP).  This document intentionally leaves that composition open rather
+than fully specifying it (<a href="#oi" class="auto internal xref">Section 10</a>).<a href="#section-5-1" class="pilcrow">¶</a></p>
 <p id="section-5-2">In the assertion, iss is the tenancy's issuer identifier, sub is the Agent
 Identifier, and aud is the authorization server's token endpoint URL; exp,
 iat, and a unique jti are <span class="bcp14">REQUIRED</span>.  The assertion is signed under a key in
@@ -1462,13 +1464,57 @@ authorization server <span class="bcp14">MUST</span> make them available to its 
 authorization decision.  Authorization servers supporting this profile <span class="bcp14">MUST</span>
 include urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
 in their metadata <span>[<a href="#RFC8414" class="cite xref">RFC8414</a>]</span>.<a href="#section-5-2" class="pilcrow">¶</a></p>
-<p id="section-5-3">No refresh tokens are issued; access tokens are short-lived and
+<p id="section-5-3"><a href="#fig-token-request" class="auto internal xref">Figure 1</a> shows an example token request (with extra line
+breaks for display purposes only):<a href="#section-5-3" class="pilcrow">¶</a></p>
+<span id="name-example-token-request"></span><div id="fig-token-request">
+<figure id="figure-1">
+        <div class="alignLeft art-text artwork" id="section-5-4.1">
+<pre>
+POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQi...
+&amp;resource=https%3A%2F%2Fapi.saas.example%2F
+</pre>
+</div>
+<figcaption><a href="#figure-1" class="selfRef">Figure 1</a>:
+<a href="#name-example-token-request" class="selfRef">Example token request</a>
+        </figcaption></figure>
+</div>
+<p id="section-5-5"><a href="#fig-assertion-claims" class="auto internal xref">Figure 2</a> shows the decoded claims of the assertion carried
+in that request; namespace, groups, roles, and ctx are Agent Properties
+(<a href="#properties" class="auto internal xref">Section 8</a>):<a href="#section-5-5" class="pilcrow">¶</a></p>
+<span id="name-example-assertion-claims"></span><div id="fig-assertion-claims">
+<figure id="figure-2">
+        <div class="alignLeft art-text artwork" id="section-5-6.1">
+<pre>
+{
+  "iss": "https://agents.platform.example/acme",
+  "sub": "agent_7f3d9a2e",
+  "aud": "https://as.saas.example/token",
+  "exp": 1785271980,
+  "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}
+</pre>
+</div>
+<figcaption><a href="#figure-2" class="selfRef">Figure 2</a>:
+<a href="#name-example-assertion-claims" class="selfRef">Example assertion claims</a>
+        </figcaption></figure>
+</div>
+<p id="section-5-7">No refresh tokens are issued; access tokens are short-lived and
 audience-restricted <span>[<a href="#RFC8707" class="cite xref">RFC8707</a>]</span>.  Assertion lifetimes <span class="bcp14">SHOULD</span> be as short as
-system availability constraints allow.<a href="#section-5-3" class="pilcrow">¶</a></p>
-<p id="section-5-4">TODO: proof-of-possession -- the assertion is a bearer grant; options are
+system availability constraints allow.<a href="#section-5-7" class="pilcrow">¶</a></p>
+<p id="section-5-8">TODO: proof-of-possession -- the assertion is a bearer grant; options are
 sender-constrained access tokens, or attestation-based client authentication
 <span>[<a href="#ATTEST-CLIENT-AUTH" class="cite xref">ATTEST-CLIENT-AUTH</a>]</span> (Platform as client attester, agent instance signs the
-PoP JWT) if agent instances hold keys.<a href="#section-5-4" class="pilcrow">¶</a></p>
+PoP JWT) if agent instances hold keys.<a href="#section-5-8" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="trust">
@@ -1495,12 +1541,14 @@ audience (<a href="#oi" class="auto internal xref">Section 10</a>).  This delibe
       <h2 id="name-agent-instantiation">
 <a href="#section-7" class="section-number selfRef">7. </a><a href="#name-agent-instantiation" class="section-name selfRef">Agent Instantiation</a>
       </h2>
-<p id="section-7-1">Creating an Agent is Platform-internal and <span class="bcp14">MUST NOT</span> require any interaction
-with the Resource Server, its authorization server, an Enterprise IdP, or the
-Customer Administrator.  A Resource Server <span class="bcp14">MUST</span> accept a previously-unseen
-Agent Identifier presented as sub under an allowlisted issuer and <span class="bcp14">MUST</span>
-authorize it via <a href="#properties" class="auto internal xref">Section 8</a> rather than by identifier structure.  Agents
-are not dynamically registered clients <span>[<a href="#RFC7591" class="cite xref">RFC7591</a>]</span>.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-7-1">Creating an Agent is Platform-internal and <span class="bcp14">MUST NOT</span> require any
+ahead-of-time interaction with the Resource Server, its authorization
+server, an Enterprise IdP, or the Customer Administrator.  A Resource Server
+first learns that an Agent exists when the Agent presents its first
+authorization grant: it <span class="bcp14">MUST</span> accept a previously-unseen Agent Identifier
+presented as sub under an allowlisted issuer and <span class="bcp14">MUST</span> authorize it via
+<a href="#properties" class="auto internal xref">Section 8</a> rather than by identifier structure.  Agents are not
+dynamically registered clients <span>[<a href="#RFC7591" class="cite xref">RFC7591</a>]</span>.<a href="#section-7-1" class="pilcrow">¶</a></p>
 <p id="section-7-2">Optionally, a Platform <span class="bcp14">MAY</span> project Agents into an Enterprise IdP (e.g., as
 <span>[<a href="#SCIM-AGENT" class="cite xref">SCIM-AGENT</a>]</span> resources) for inventory and lifecycle governance; such
 projection <span class="bcp14">MUST NOT</span> gate agent creation or token issuance.  TODO: BYO-IdP
@@ -1548,7 +1596,8 @@ IAM federation trust policies) and cannot evaluate Property predicates.<a href="
           <p id="section-10-1.3.1">Issuer placement: issuer operated by the Platform versus by the Enterprise
 IdP, with the Platform obtaining assertions by token exchange <span>[<a href="#RFC8693" class="cite xref">RFC8693</a>]</span>
 with the IdP; client authentication is redundant in the former case and
-load-bearing in the latter.<a href="#section-10-1.3.1" class="pilcrow">¶</a></p>
+load-bearing in the latter; what, if anything, client_id means in each
+case.<a href="#section-10-1.3.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-10-1.4">
           <p id="section-10-1.4.1">Staleness signaling in place of per-agent revocation (issuer- or
