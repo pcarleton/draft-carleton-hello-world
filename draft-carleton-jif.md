@@ -113,6 +113,14 @@ trust in an issuer is established once, by reference, and individual agents
 are provisioned at the resource server just in time, on first presentation,
 with no per-agent registration step.
 
+A design goal of this profile is a minimal adoption path for services that
+already operate an OAuth deployment: supporting it requires changes only at
+the authorization server's token endpoint, which accepts the JWT
+authorization grant from allowlisted issuers.  The access tokens the
+authorization server issues are unchanged in format and semantics, and
+resource servers continue to trust their authorization server exactly as
+they do today.
+
 ## Relationship to AIMS
 
 {{AIMS}} remains the base specification for anything not restated here.  This
