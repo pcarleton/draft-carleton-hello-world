@@ -1369,14 +1369,42 @@ credentials, runtime attestation, agent-to-agent protocols.<a href="#section-1.3
 "<span class="bcp14">MAY</span>", and "<span class="bcp14">OPTIONAL</span>" in this document are to be interpreted as
 described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they
 appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶</a></p>
-<p id="section-2-2">Agent Platform ("Platform"): the service that hosts Agents and operates the
-per-tenancy issuers that vouch for them.  Agent: a hosted workload with its
-own Agent Identifier, context, and configuration.  Agent Property: a
-Platform-asserted attribute carried as a claim in the authorization grant.
-Resource Server (RS): a service holding customer resources, used here for the
-combined authorization-server-plus-resource role a SaaS product presents.
-Enterprise IdP: the customer's identity provider (optional).  Customer
-Administrator: the human who performs one-time trust establishment.<a href="#section-2-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-2-2">
+        <dt id="section-2-2.1">Agent Platform ("Platform"):</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.2">
+          <p id="section-2-2.2.1">The service that hosts Agents and operates the per-tenancy issuers that
+vouch for them.<a href="#section-2-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-2.3">Agent:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.4">
+          <p id="section-2-2.4.1">A hosted workload with its own Agent Identifier, context, and
+configuration.<a href="#section-2-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-2.5">Agent Property:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.6">
+          <p id="section-2-2.6.1">A Platform-asserted attribute carried as a claim in the authorization
+grant.<a href="#section-2-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-2.7">Resource Server (RS):</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.8">
+          <p id="section-2-2.8.1">A service holding customer resources, used here for the combined
+authorization-server-plus-resource role a SaaS product presents.<a href="#section-2-2.8.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-2.9">Enterprise IdP:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.10">
+          <p id="section-2-2.10.1">The customer's identity provider (optional).<a href="#section-2-2.10.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-2.11">Customer Administrator:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-2.12">
+          <p id="section-2-2.12.1">The human who performs one-time trust establishment.<a href="#section-2-2.12.1" class="pilcrow">¶</a></p>
+</dd>
+      <dd class="break"></dd>
+</dl>
 </section>
 </div>
 <div id="deployment-model">
