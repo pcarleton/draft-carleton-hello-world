@@ -121,7 +121,7 @@ profile constrains {{AIMS}} as follows:
 | AIMS component | Here | Relationship |
 |---|---|---|
 | Identifiers (Sec. 6) | {{identity-model}} | Constrained: opaque, immutable, non-reassignable agent identifier per {{WIMSE-ID}}, carried as sub |
-| Credentials (Sec. 7), Authentication (Sec. 9) | {{authorization-grant}} | Constrained: {{RFC7523}} JWT authorization grant (assertion), platform-signed; no per-agent credential; public client in the simple case |
+| Credentials (Sec. 7), Authentication (Sec. 9) | {{authorization-grant}} | Constrained: {{RFC7523}} JWT authorization grant (assertion), platform-signed; no per-agent credential; client identity deliberately unspecified |
 | Credential Provisioning (Sec. 8) | {{instantiation}} | Constrained: platform-internal |
 | Authorization (Sec. 10, case 10.4.2) | {{properties}} | Added: standard property claims; by-reference trust ({{trust}}) |
 | Monitoring/Remediation (Sec. 11) | {{oi}} | TODO |
@@ -180,8 +180,7 @@ Resource Server ({{instantiation}}); per-request JWT authorization grant
 
 An Agent's identity has three units: the tenancy's issuer, which signs
 assertions about the Agent; the Agent Identifier, opaque, unique within the
-issuer, immutable, and never reassigned, carried as the assertion's sub and
-used verbatim as the OAuth client_id where one is required
+issuer, immutable, and never reassigned, carried as the assertion's sub
 ({{authorization-grant}}); and claims, carrying everything else
 ({{properties}}).  Renaming an Agent MUST NOT change its Agent Identifier.
 Resource Servers MUST NOT parse or pattern-match the Agent Identifier for
@@ -197,13 +196,16 @@ Section 2.1, issued by the Platform as a third party in the sense of
 {{RFC7521}}, Section 5.2.  The token request carries
 grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in the
 assertion parameter, and the target resource in the resource parameter
-{{RFC8707}}.  In the simple case the Agent is a public client: client_id is
-the Agent Identifier and no client authentication is performed.  Deployments
-that require client authentication use a Client ID Metadata Document
-{{CIMD}} with private_key_jwt.  TODO: client authentication is redundant
-while the assertion issuer is the Platform itself; it becomes load-bearing if
-the issuer is the customer's Enterprise IdP and the Platform obtains the
-assertion by token exchange {{RFC8693}} with the IdP.
+{{RFC8707}}.  This profile deliberately does not specify the OAuth client
+identity or attach semantics to client_id.  In the simplest deployment the
+token request is made without client authentication.  Deployments MAY layer
+client authentication on top -- for example, the Platform authenticating as
+an OAuth client in its own right with a Client ID Metadata Document {{CIMD}}
+and a private_key_jwt client assertion -- a composition that becomes natural
+when the authorization grant's issuer is the customer's Enterprise IdP
+rather than the Platform (obtained, e.g., by token exchange {{RFC8693}} with
+the IdP).  This document intentionally leaves that composition open rather
+than fully specifying it ({{oi}}).
 
 In the assertion, iss is the tenancy's issuer identifier, sub is the Agent
 Identifier, and aud is the authorization server's token endpoint URL; exp,
@@ -215,6 +217,40 @@ authorization server MUST make them available to its Resource Server's
 authorization decision.  Authorization servers supporting this profile MUST
 include urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
 in their metadata {{RFC8414}}.
+
+{{fig-token-request}} shows an example token request (with extra line
+breaks for display purposes only):
+
+~~~
+POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQi...
+&resource=https%3A%2F%2Fapi.saas.example%2F
+~~~
+{: #fig-token-request title="Example token request"}
+
+{{fig-assertion-claims}} shows the decoded claims of the assertion carried
+in that request; namespace, groups, roles, and ctx are Agent Properties
+({{properties}}):
+
+~~~
+{
+  "iss": "https://agents.platform.example/acme",
+  "sub": "agent_7f3d9a2e",
+  "aud": "https://as.saas.example/token",
+  "exp": 1785271980,
+  "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}
+~~~
+{: #fig-assertion-claims title="Example assertion claims"}
 
 No refresh tokens are issued; access tokens are short-lived and
 audience-restricted {{RFC8707}}.  Assertion lifetimes SHOULD be as short as
@@ -242,12 +278,14 @@ audience ({{oi}}).  This deliberately tightens the corresponding SHOULD in
 
 # Agent Instantiation {#instantiation}
 
-Creating an Agent is Platform-internal and MUST NOT require any interaction
-with the Resource Server, its authorization server, an Enterprise IdP, or the
-Customer Administrator.  A Resource Server MUST accept a previously-unseen
-Agent Identifier presented as sub under an allowlisted issuer and MUST
-authorize it via {{properties}} rather than by identifier structure.  Agents
-are not dynamically registered clients {{RFC7591}}.
+Creating an Agent is Platform-internal and MUST NOT require any
+ahead-of-time interaction with the Resource Server, its authorization
+server, an Enterprise IdP, or the Customer Administrator.  A Resource Server
+first learns that an Agent exists when the Agent presents its first
+authorization grant: it MUST accept a previously-unseen Agent Identifier
+presented as sub under an allowlisted issuer and MUST authorize it via
+{{properties}} rather than by identifier structure.  Agents are not
+dynamically registered clients {{RFC7591}}.
 
 Optionally, a Platform MAY project Agents into an Enterprise IdP (e.g., as
 {{SCIM-AGENT}} resources) for inventory and lifecycle governance; such
@@ -278,7 +316,8 @@ forwarding the access token.
 - Issuer placement: issuer operated by the Platform versus by the Enterprise
   IdP, with the Platform obtaining assertions by token exchange {{RFC8693}}
   with the IdP; client authentication is redundant in the former case and
-  load-bearing in the latter.
+  load-bearing in the latter; what, if anything, client_id means in each
+  case.
 - Staleness signaling in place of per-agent revocation (issuer- or
   Property-scoped epoch versus event push versus lifetime alone).
 - Retirement: no signal currently informs a Resource Server that an Agent
