@@ -48,6 +48,16 @@ normative:
 
 informative:
   RFC7591:
+  OIDC-CORE:
+    title: OpenID Connect Core 1.0 incorporating errata set 2
+    target: https://openid.net/specs/openid-connect-core-1_0.html
+    date: 2023-12
+    author:
+      - ins: N. Sakimura
+      - ins: J. Bradley
+      - ins: M. Jones
+      - ins: B. de Medeiros
+      - ins: C. Mortimore
   RFC8693:
   WIMSE-ARCH: I-D.ietf-wimse-arch
   CIMD: I-D.ietf-oauth-client-id-metadata-document
@@ -252,6 +262,7 @@ in that request; namespace, groups, roles, and ctx are Agent Properties
   "exp": 1785271980,
   "iat": 1785271680,
   "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
   "namespace": "acme/support",
   "groups": ["support-eng"],
   "roles": ["responder"],
@@ -303,9 +314,15 @@ BYO-IdP deployment model.
 
 # Agent Properties and Authorization {#properties}
 
-TODO.  Initial standard property claims: namespace, groups, roles, and an
-optional ctx naming the collaboration context; additional attributes use
-collision-resistant claim names per {{RFC7519}}, Section 4.3.  A Resource
+TODO.  Initial standard property claims: name, a human-readable display
+name as in an OpenID Connect ID Token {{OIDC-CORE}} (mutable, and never a
+key for authorization or attribution -- that is the Agent Identifier);
+namespace, groups, roles, and an optional ctx naming the collaboration
+context; additional attributes use collision-resistant claim names per
+{{RFC7519}}, Section 4.3.  TODO: whether an Agent needs a human-usable,
+"@"-referenceable address within the Platform, analogous to sharing a
+document with an email address, distinct from both name and the opaque
+Agent Identifier; noted here, deliberately unsolved.  A Resource
 Server keeps a local, administrator-controlled mapping from Property
 predicates to permissions; possession of a Property is not itself
 authorization.  Deny semantics do not travel.  TODO: worked example.
@@ -332,6 +349,9 @@ forwarding the access token.
 - Retirement: no signal currently informs a Resource Server that an Agent
   Identifier is permanently retired.
 - Agent Identifier format: opaque string versus URI.
+- Addressing: whether an Agent needs a human-usable, "@"-referenceable
+  address (to share a resource with an agent the way one shares with an
+  email address), distinct from the display name and the Agent Identifier.
 
 # Security Considerations
 
