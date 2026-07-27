@@ -1273,6 +1273,13 @@ The resulting mechanism is called just-in-time identity federation (JIF):
 trust in an issuer is established once, by reference, and individual agents
 are provisioned at the resource server just in time, on first presentation,
 with no per-agent registration step.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">A design goal of this profile is a minimal adoption path for services that
+already operate an OAuth deployment: supporting it requires changes only at
+the authorization server's token endpoint, which accepts the JWT
+authorization grant from allowlisted issuers.  The access tokens the
+authorization server issues are unchanged in format and semantics, and
+resource servers continue to trust their authorization server exactly as
+they do today.<a href="#section-1-4" class="pilcrow">¶</a></p>
 <div id="relationship-to-aims">
 <section id="section-1.1">
         <h3 id="name-relationship-to-aims">
