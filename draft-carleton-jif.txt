@@ -303,6 +303,7 @@ Table of Contents
      "exp": 1785271980,
      "iat": 1785271680,
      "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+     "name": "Support Triage Agent",
      "namespace": "acme/support",
      "groups": ["support-eng"],
      "roles": ["responder"],
@@ -355,13 +356,19 @@ Table of Contents
 
 8.  Agent Properties and Authorization
 
-   TODO.  Initial standard property claims: namespace, groups, roles,
-   and an optional ctx naming the collaboration context; additional
-   attributes use collision-resistant claim names per [RFC7519],
-   Section 4.3.  A Resource Server keeps a local, administrator-
-   controlled mapping from Property predicates to permissions;
-   possession of a Property is not itself authorization.  Deny semantics
-   do not travel.  TODO: worked example.
+   TODO.  Initial standard property claims: name, a human-readable
+   display name as in an OpenID Connect ID Token [OIDC-CORE] (mutable,
+   and never a key for authorization or attribution -- that is the Agent
+   Identifier); namespace, groups, roles, and an optional ctx naming the
+   collaboration context; additional attributes use collision-resistant
+   claim names per [RFC7519], Section 4.3.  TODO: whether an Agent needs
+   a human-usable, "@"-referenceable address within the Platform,
+   analogous to sharing a document with an email address, distinct from
+   both name and the opaque Agent Identifier; noted here, deliberately
+   unsolved.  A Resource Server keeps a local, administrator-controlled
+   mapping from Property predicates to permissions; possession of a
+   Property is not itself authorization.  Deny semantics do not travel.
+   TODO: worked example.
 
 9.  Attribution
 
@@ -391,6 +398,11 @@ Table of Contents
       Agent Identifier is permanently retired.
 
    *  Agent Identifier format: opaque string versus URI.
+
+   *  Addressing: whether an Agent needs a human-usable,
+      "@"-referenceable address (to share a resource with an agent the
+      way one shares with an email address), distinct from the display
+      name and the Agent Identifier.
 
 11.  Security Considerations
 
@@ -496,6 +508,12 @@ Table of Contents
               draft)", n.d., <https://github.com/modelcontextprotocol/
               ext-auth/blob/main/specification/draft/workload-identity-
               federation.mdx>.
+
+   [OIDC-CORE]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0 incorporating
+              errata set 2", December 2023,
+              <https://openid.net/specs/openid-connect-core-1_0.html>.
 
    [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
               P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",

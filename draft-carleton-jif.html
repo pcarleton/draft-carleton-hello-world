@@ -1504,6 +1504,7 @@ in that request; namespace, groups, roles, and ctx are Agent Properties
   "exp": 1785271980,
   "iat": 1785271680,
   "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
   "namespace": "acme/support",
   "groups": ["support-eng"],
   "roles": ["responder"],
@@ -1568,9 +1569,15 @@ BYO-IdP deployment model.<a href="#section-7-2" class="pilcrow">¶</a></p>
       <h2 id="name-agent-properties-and-author">
 <a href="#section-8" class="section-number selfRef">8. </a><a href="#name-agent-properties-and-author" class="section-name selfRef">Agent Properties and Authorization</a>
       </h2>
-<p id="section-8-1">TODO.  Initial standard property claims: namespace, groups, roles, and an
-optional ctx naming the collaboration context; additional attributes use
-collision-resistant claim names per <span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>, Section 4.3.  A Resource
+<p id="section-8-1">TODO.  Initial standard property claims: name, a human-readable display
+name as in an OpenID Connect ID Token <span>[<a href="#OIDC-CORE" class="cite xref">OIDC-CORE</a>]</span> (mutable, and never a
+key for authorization or attribution -- that is the Agent Identifier);
+namespace, groups, roles, and an optional ctx naming the collaboration
+context; additional attributes use collision-resistant claim names per
+<span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>, Section 4.3.  TODO: whether an Agent needs a human-usable,
+"@"-referenceable address within the Platform, analogous to sharing a
+document with an email address, distinct from both name and the opaque
+Agent Identifier; noted here, deliberately unsolved.  A Resource
 Server keeps a local, administrator-controlled mapping from Property
 predicates to permissions; possession of a Property is not itself
 authorization.  Deny semantics do not travel.  TODO: worked example.<a href="#section-8-1" class="pilcrow">¶</a></p>
@@ -1617,6 +1624,11 @@ Identifier is permanently retired.<a href="#section-10-1.5.1" class="pilcrow">¶
 </li>
         <li class="normal" id="section-10-1.6">
           <p id="section-10-1.6.1">Agent Identifier format: opaque string versus URI.<a href="#section-10-1.6.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-10-1.7">
+          <p id="section-10-1.7.1">Addressing: whether an Agent needs a human-usable, "@"-referenceable
+address (to share a resource with an agent the way one shares with an
+email address), distinct from the display name and the Agent Identifier.<a href="#section-10-1.7.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 </section>
@@ -1724,6 +1736,10 @@ credential non-exposure to the model; automated trust establishment.<a href="#se
 <dt id="MCP-WIF">[MCP-WIF]</dt>
         <dd>
 <span class="refAuthor">Model Context Protocol Community</span>, <span class="refTitle">"Workload Identity Federation (Model Context Protocol ext-auth extension, draft)"</span>, <span>n.d.</span>, <span>&lt;<a href="https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/draft/workload-identity-federation.mdx">https://github.com/modelcontextprotocol/ext-auth/blob/main/specification/draft/workload-identity-federation.mdx</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OIDC-CORE">[OIDC-CORE]</dt>
+        <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Jones, M.</span>, <span class="refAuthor">de Medeiros, B.</span>, and <span class="refAuthor">C. Mortimore</span>, <span class="refTitle">"OpenID Connect Core 1.0 incorporating errata set 2"</span>, <time datetime="2023-12" class="refDate">December 2023</time>, <span>&lt;<a href="https://openid.net/specs/openid-connect-core-1_0.html">https://openid.net/specs/openid-connect-core-1_0.html</a>&gt;</span>. </dd>
 <dd class="break"></dd>
 <dt id="RFC7591">[RFC7591]</dt>
         <dd>
