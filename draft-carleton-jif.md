@@ -296,9 +296,10 @@ presented as sub under an allowlisted issuer and MUST authorize it via
 dynamically registered clients {{RFC7591}}.
 
 Optionally, a Platform MAY project Agents into an Enterprise IdP (e.g., as
-{{SCIM-AGENT}} resources) for inventory and lifecycle governance; such
-projection MUST NOT gate agent creation or token issuance.  TODO: BYO-IdP
-deployment model.
+{{SCIM-AGENT}} resources) for inventory and lifecycle governance.  Such
+projection MUST NOT be required ahead of time: performing it just in time,
+including synchronously during first token issuance, is acceptable.  TODO:
+BYO-IdP deployment model.
 
 # Agent Properties and Authorization {#properties}
 
