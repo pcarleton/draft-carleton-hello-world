@@ -12,8 +12,8 @@ v: 3
 keyword:
  - hello world
 venue:
-  github: pcarleton/draft-carleton-hello-world
-  latest: https://pcarleton.github.io/draft-carleton-hello-world/draft-carleton-hello-world.html
+  github: "pcarleton/draft-carleton-hello-world"
+  latest: "https://pcarleton.github.io/draft-carleton-hello-world/draft-carleton-hello-world.html"
 
 author:
  -
