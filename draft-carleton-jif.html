@@ -1557,9 +1557,10 @@ presented as sub under an allowlisted issuer and <span class="bcp14">MUST</span>
 <a href="#properties" class="auto internal xref">Section 8</a> rather than by identifier structure.  Agents are not
 dynamically registered clients <span>[<a href="#RFC7591" class="cite xref">RFC7591</a>]</span>.<a href="#section-7-1" class="pilcrow">¶</a></p>
 <p id="section-7-2">Optionally, a Platform <span class="bcp14">MAY</span> project Agents into an Enterprise IdP (e.g., as
-<span>[<a href="#SCIM-AGENT" class="cite xref">SCIM-AGENT</a>]</span> resources) for inventory and lifecycle governance; such
-projection <span class="bcp14">MUST NOT</span> gate agent creation or token issuance.  TODO: BYO-IdP
-deployment model.<a href="#section-7-2" class="pilcrow">¶</a></p>
+<span>[<a href="#SCIM-AGENT" class="cite xref">SCIM-AGENT</a>]</span> resources) for inventory and lifecycle governance.  Such
+projection <span class="bcp14">MUST NOT</span> be required ahead of time: performing it just in time,
+including synchronously during first token issuance, is acceptable.  TODO:
+BYO-IdP deployment model.<a href="#section-7-2" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="properties">

@@ -349,8 +349,9 @@ Table of Contents
 
    Optionally, a Platform MAY project Agents into an Enterprise IdP
    (e.g., as [SCIM-AGENT] resources) for inventory and lifecycle
-   governance; such projection MUST NOT gate agent creation or token
-   issuance.  TODO: BYO-IdP deployment model.
+   governance.  Such projection MUST NOT be required ahead of time:
+   performing it just in time, including synchronously during first
+   token issuance, is acceptable.  TODO: BYO-IdP deployment model.
 
 8.  Agent Properties and Authorization
 
