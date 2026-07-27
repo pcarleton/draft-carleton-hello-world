@@ -147,14 +147,27 @@ credentials, runtime attestation, agent-to-agent protocols.
 
 {::boilerplate bcp14-tagged}
 
-Agent Platform ("Platform"): the service that hosts Agents and operates the
-per-tenancy issuers that vouch for them.  Agent: a hosted workload with its
-own Agent Identifier, context, and configuration.  Agent Property: a
-Platform-asserted attribute carried as a claim in the authorization grant.
-Resource Server (RS): a service holding customer resources, used here for the
-combined authorization-server-plus-resource role a SaaS product presents.
-Enterprise IdP: the customer's identity provider (optional).  Customer
-Administrator: the human who performs one-time trust establishment.
+Agent Platform ("Platform"):
+: The service that hosts Agents and operates the per-tenancy issuers that
+  vouch for them.
+
+Agent:
+: A hosted workload with its own Agent Identifier, context, and
+  configuration.
+
+Agent Property:
+: A Platform-asserted attribute carried as a claim in the authorization
+  grant.
+
+Resource Server (RS):
+: A service holding customer resources, used here for the combined
+  authorization-server-plus-resource role a SaaS product presents.
+
+Enterprise IdP:
+: The customer's identity provider (optional).
+
+Customer Administrator:
+: The human who performs one-time trust establishment.
 
 # Deployment Model
 
