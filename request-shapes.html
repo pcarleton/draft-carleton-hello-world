@@ -1,0 +1,486 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>request shapes</title>
+<style>
+  body { background:#14161a; color:#d8dee9; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; margin:20px; }
+  h1 { font-size:15px; color:#eee; }
+  .tabs { margin: 10px 0; }
+  .tabs button { background:#22262c; color:#aaa; border:1px solid #333; padding:6px 14px; cursor:pointer; font:inherit; }
+  .tabs button.active { background:#2f3540; color:#fff; border-bottom:2px solid #4da3ff; }
+  .views { margin: 8px 0 14px; }
+  .views button { background:none; border:none; color:#888; cursor:pointer; font:inherit; padding:4px 8px; }
+  .views button.active { color:#fff; text-decoration: underline; }
+  .tabbody { display:none; } .tabbody.show { display:block; }
+  .panel { display:none; } .panel.show { display:block; }
+  pre { background:#1b1e24; border:1px solid #2a2e36; padding:14px 16px; line-height:1.5; overflow-x:auto; }
+  .client   { color:#4da3ff; }
+  .attester { color:#c792ea; }
+  .as       { color:#78d67a; }
+  .rs       { color:#ffb86c; }
+  .dim      { color:#666; }
+  .note     { color:#9aa5b1; }
+  .warn     { color:#ff6b6b; }
+  .new      { background:rgba(255,255,255,.07); border-radius:2px; }
+  .jwt { border-left:3px solid #555; margin:10px 0; }
+  .jwt.by-attester { border-left-color:#c792ea; }
+  .jwt.by-client   { border-left-color:#4da3ff; }
+  .newblock { border:1px dashed #4a4f58; }
+  .delta { color:#777; font-size:12px; margin:4px 0 8px; }
+  details { margin-top:14px; color:#9aa5b1; }
+  summary { cursor:pointer; }
+</style></head>
+<body>
+<h1>token request shapes</h1>
+<div class="legend">
+  <span class="client">&#9632; Client (agent instance)</span>
+  <span class="attester">&#9632; Platform (issuer / attester / OAuth client)</span>
+  <span class="as">&#9632; Authorization Server</span>
+  <span class="rs">&#9632; Resource Server</span>
+  &nbsp;&nbsp;<span class="dim"><span class="new">shaded</span> / dashed border = added vs the previous shape</span>
+</div>
+
+<div class="tabs">
+  <button data-tab="grant" class="active">grant only</button>
+  <button data-tab="dpop">grant + DPoP</button>
+  <button data-tab="cimd">CIMD/pkjwt + grant + DPoP</button>
+  <button data-tab="attest">attest-client-auth</button>
+</div>
+
+<div class="tabbody show" id="tab-grant">
+  <div class="views">view: <button data-view="raw" class="active">raw text</button> | <button data-view="seq">sequence</button></div>
+  <div class="delta">baseline shape -- nothing marked new</div>
+  <div class="panel raw show">
+<pre>
+<span class="note">## 1. token request -- the JIF floor: bearer grant, no client identity</span>
+
+<span class="as">POST /token HTTP/1.1</span>
+Host: <span class="as">as.saas.example</span>
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
+&amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
+
+<span class="note">## 2. decoded: the JIF grant</span></pre>
+<pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
+.
+{
+  "iss": "<span class="attester">https://acme.agents.platform.example</span>",
+  "sub": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "aud": ["<span class="as">https://as.saas.example</span>",
+          "<span class="as">https://as.saas.example/token</span>"],
+  "exp": 1785271980, "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}</pre>
+<pre><span class="warn"># BEARER: anyone holding this within exp can redeem it once.</span>
+<span class="dim"># mitigations: AS jti replay cache, short exp, valid only at /token.</span>
+
+<span class="note">## 3. AS response</span>
+{ "access_token": "eyJ...", "token_type": "Bearer", "expires_in": 900 }
+
+<span class="note">## 4. using it at the RS (many times, until it expires)</span>
+
+<span class="rs">GET /docs/42 HTTP/1.1</span>
+Host: <span class="rs">api.saas.example</span>
+Authorization: Bearer eyJ...access.token...
+
+<span class="dim"># RS untouched: it trusts its AS exactly as before.</span></pre>
+  </div>
+  <div class="panel seq">
+<pre>
+<span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
+  |                           |                           |                     |
+  |&lt;- (0) JIF assertion ------|                           |                     |
+<span class="dim">        one signed assertion per token request</span>
+  |                           |                           |                     |
+  |-- (1) POST /token: assertion + resource -------------&gt;|                     |
+  |                           |                           |                     |
+<span class="dim">                                  (2) AS: iss allowlisted? JWKS by iss; unseen sub -&gt; accept; jti replay?</span>
+  |                           |                           |                     |
+  |&lt;- (3) access token -----------------------------------|                     |
+<span class="dim">        ordinary bearer, aud = RS</span>
+  |                           |                           |                     |
+  |-- (4) GET /resource with Authorization: Bearer ----------------------------&gt;|
+  |                           |                           |                     |
+  |&lt;- 200 ----------------------------------------------------------------------|
+  |                           |                           |                     |
+  |-- (5) ...more calls, same token, until it expires -------------------------&gt;|
+  |                           |                           |                     |
+  |&lt;- 200 ----------------------------------------------------------------------|
+  |                           |                           |                     |
+<span class="dim">    (6) token expired -&gt; new assertion, new token: repeat (0)-(3)</span>
+  |                           |                           |                     |
+<span class="dim">      1 assertion : 1 token request : many RS calls.  RS never changes.</span>
+</pre>
+  </div>
+</div>
+
+<div class="tabbody" id="tab-dpop">
+  <div class="views">view: <button data-view="raw" class="active">raw text</button> | <button data-view="seq">sequence</button></div>
+  <div class="delta">additions marked vs: grant only</div>
+  <div class="panel raw show">
+<pre>
+<span class="note">## 1. token request -- same as grant-only, plus one header</span>
+
+<span class="as">POST /token HTTP/1.1</span>
+Host: <span class="as">as.saas.example</span>
+<span class="new"><span class="client">DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...</span>            <span class="dim"># proof #1, signed by CLIENT instance key</span></span>
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
+&amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
+
+<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
+.
+{
+  "iss": "<span class="attester">https://acme.agents.platform.example</span>",
+  "sub": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "aud": ["<span class="as">https://as.saas.example</span>",
+          "<span class="as">https://as.saas.example/token</span>"],
+  "exp": 1785271980, "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}</pre>
+<pre><span class="note">## 2b. decoded: DPoP proof #1 (token endpoint)</span></pre>
+<pre class="jwt by-client newblock">{ "typ": "dpop+jwt", "alg": "ES256",
+  "jwk": { "kty":"EC", "crv":"P-256", "x":"<span class="client">...instance public key...</span>", "y":"..." } }
+.
+{ "htm": "POST",
+  "htu": "<span class="as">https://as.saas.example/token</span>",
+  "iat": 1785271680,
+  "jti": "b3c1..." }</pre>
+<pre><span class="note">## 3. AS response</span>
+{ "access_token": "eyJ...", <span class="new">"token_type": "DPoP"</span>, "expires_in": 900 }
+<span class="new"><span class="dim"># token now carries cnf.jkt = thumbprint of the instance key</span></span>
+
+<span class="note">## 4. using it at the RS</span>
+
+<span class="rs">GET /docs/42 HTTP/1.1</span>
+Host: <span class="rs">api.saas.example</span>
+<span class="new">Authorization: DPoP eyJ...access.token...</span>
+<span class="new"><span class="client">DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...</span>            <span class="dim"># proof #2: htm GET, htu, ath=hash(token), jti</span></span>
+
+<span class="warn"># RS-side change required: validate proof #2 against cnf.jkt.</span>
+<span class="warn"># breaks "only the token endpoint changes".</span>
+<span class="dim"># note: DPoP DOES protect access-token theft -- a stolen token is
+# useless without the instance key. it does NOT protect a stolen
+# assertion: a thief presents their own DPoP key and gets a fresh
+# token bound to it. to close that, put cnf (instance key) in the
+# assertion and have the AS require the DPoP key to match.</span></pre>
+  </div>
+  <div class="panel seq">
+<pre>
+<span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
+  |                           |                           |                     |
+  |&lt;- (0) JIF assertion ------|                           |                     |
+  |                           |                           |                     |
+  |-- (1) POST /token: assertion + DPoP proof#1 ---------&gt;|                     |
+  |                           |                           |                     |
+<span class="dim">                                  (2) AS: grant checks; proof#1 sig; bind token to jkt(instance key)</span>
+  |                           |                           |                     |
+  |&lt;- (3) DPoP-bound token -------------------------------|                     |
+  |                           |                           |                     |
+  |-- (4) GET /resource: Authorization: DPoP + proof#2 (ath) ------------------&gt;|
+  |                           |                           |                     |
+<span class="dim">                                  (5) RS validates proof#2 vs cnf.jkt  &lt;- RS-side change</span>
+  |                           |                           |                     |
+  |&lt;- (6) 200 ------------------------------------------------------------------|
+  |                           |                           |                     |
+</pre>
+  </div>
+</div>
+
+<div class="tabbody" id="tab-cimd">
+  <div class="views">view: <button data-view="raw" class="active">raw text</button> | <button data-view="seq">sequence</button></div>
+  <div class="delta">additions marked vs: grant + DPoP</div>
+  <div class="panel raw show">
+<pre>
+<span class="note">## 1. token request -- the full stack: Platform authenticates as an
+## OAuth client (CIMD + private_key_jwt), carries the JIF grant, DPoP
+## binds the issued token. stays open for grant-issuer = Enterprise IdP.</span>
+
+<span class="as">POST /token HTTP/1.1</span>
+Host: <span class="as">as.saas.example</span>
+<span class="client">DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...</span>            <span class="dim"># proof #1, signed by CLIENT instance key</span>
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># JIF grant (issuer could be the customer's IdP)</span>
+&amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
+<span class="new">&amp;<span class="attester">client_id=https%3A%2F%2Fagents.platform.example%2Foauth%2Fclient</span>   <span class="dim"># the CIMD URL</span></span>
+<span class="new">&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer</span>
+<span class="new">&amp;<span class="attester">client_assertion=eyJhbGciOiJFUzI1NiIs...</span> <span class="dim"># private_key_jwt, key published in the CIMD</span></span>
+
+<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
+.
+{
+  "iss": "<span class="attester">https://acme.agents.platform.example</span>",
+  "sub": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "aud": ["<span class="as">https://as.saas.example</span>",
+          "<span class="as">https://as.saas.example/token</span>"],
+  "exp": 1785271980, "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}</pre>
+<pre><span class="note">## 2b. decoded: DPoP proof #1 (unchanged from grant + DPoP)</span></pre>
+<pre class="jwt by-client">{ "typ": "dpop+jwt", "alg": "ES256",
+  "jwk": { "kty":"EC", "crv":"P-256", "x":"<span class="client">...instance public key...</span>", "y":"..." } }
+.
+{ "htm": "POST", "htu": "<span class="as">https://as.saas.example/token</span>", "iat": 1785271680, "jti": "b3c1..." }</pre>
+<pre><span class="note">## 2c. decoded: client_assertion (CLIENT AUTH slot -- authenticates the Platform)</span></pre>
+<pre class="jwt by-attester newblock">{ "alg": "ES256", "kid": "platform-client-2026" }
+.
+{ "iss": "<span class="attester">https://agents.platform.example/oauth/client</span>",
+  "sub": "<span class="attester">https://agents.platform.example/oauth/client</span>",   <span class="dim"># iss = sub = client_id</span>
+  "aud": "<span class="as">https://as.saas.example</span>",
+  "exp": 1785271980, "jti": "9a4e..." }</pre>
+<pre><span class="note">## 2d. the CIMD, fetched by the AS from the client_id URL</span></pre>
+<pre class="jwt by-attester newblock">{
+  "client_id": "<span class="attester">https://agents.platform.example/oauth/client</span>",
+  "client_name": "Acme Agents Platform",
+  "token_endpoint_auth_method": "private_key_jwt",
+  "jwks": { "keys": [ { "kty":"EC", "kid":"platform-client-2026", ... } ] }
+}
+<span class="dim"># no registration step: the AS discovers the client by dereferencing
+# client_id. same by-reference trust move as the JIF issuer allowlist.</span></pre>
+<pre><span class="note">## 3. AS response</span>
+{ "access_token": "eyJ...", "token_type": "DPoP", "expires_in": 900 }
+
+<span class="note">## 4. using it at the RS (unchanged from grant + DPoP)</span>
+
+<span class="rs">GET /docs/42 HTTP/1.1</span>
+Host: <span class="rs">api.saas.example</span>
+Authorization: DPoP eyJ...access.token...
+<span class="client">DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...</span>            <span class="dim"># proof #2: htm GET, htu, ath, jti</span>
+
+<span class="dim"># slots recap: client_assertion answers "who is calling" (Platform);
+# assertion answers "issue a token FOR this subject" (the agent);
+# DPoP binds what comes back. three independent layers.</span></pre>
+  </div>
+  <div class="panel seq">
+<pre>
+<span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
+  |                           |                           |                     |
+  |&lt;- (0) JIF assertion ------|                           |                     |
+  |                           |                           |                     |
+  |-- (1) POST /token: client_id=CIMD-url + pkjwt -------&gt;|                     |
+  |                           |                           |                     |
+<span class="dim">            plus assertion, DPoP proof#1, resource</span>
+  |                           |                           |                     |
+  |                           |&lt;- (2) GET client_id URL --|                     |
+  |                           |                           |                     |
+  |                           |-- (3) CIMD doc (jwks) ---&gt;|                     |
+  |                           |                           |                     |
+<span class="dim">                                  (4) AS: pkjwt vs CIMD jwks; iss allowlist; DPoP proof#1</span>
+  |                           |                           |                     |
+  |&lt;- (5) DPoP-bound token -------------------------------|                     |
+  |                           |                           |                     |
+  |-- (6) GET /resource: DPoP token + proof#2 ---------------------------------&gt;|
+  |                           |                           |                     |
+  |&lt;- (7) 200 ------------------------------------------------------------------|
+  |                           |                           |                     |
+</pre>
+  </div>
+</div>
+
+<div class="tabbody" id="tab-attest">
+  <div class="views">view: <button data-view="raw" class="active">raw text</button> | <button data-view="seq">sequence</button></div>
+  <div class="delta">additions marked vs: grant only (alternative branch to DPoP)</div>
+  <div class="panel raw show">
+<pre>
+<span class="note">## 0. ahead of time (platform-internal): instance makes a keypair,
+##    attester binds it into a Client Attestation JWT
+
+## 1. token request -- grant-only plus the two attestation headers</span>
+
+<span class="as">POST /token HTTP/1.1</span>
+Host: <span class="as">as.saas.example</span>
+<span class="new"><span class="attester">OAuth-Client-Attestation: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24...</span> <span class="dim"># signed by ATTESTER</span></span>
+<span class="new"><span class="client">OAuth-Client-Attestation-PoP: eyJ0eXAiOiJ...cG9w...</span>                 <span class="dim"># signed by CLIENT instance key</span></span>
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
+&amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
+
+<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
+.
+{
+  "iss": "<span class="attester">https://acme.agents.platform.example</span>",
+  "sub": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "aud": ["<span class="as">https://as.saas.example</span>",
+          "<span class="as">https://as.saas.example/token</span>"],
+  "exp": 1785271980, "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}</pre>
+<pre><span class="note">## 2b. decoded: Client Attestation JWT (attester vouches for the instance key)</span></pre>
+<pre class="jwt by-attester newblock">{ "typ": "oauth-client-attestation+jwt", "alg": "ES256", "kid": "attester-2026-07" }
+.
+{ "iss": "<span class="attester">https://attester.platform.example</span>",
+  "sub": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "exp": 1785275280,
+  "cnf": { "jwk": { "kty":"EC", "crv":"P-256", "x":"<span class="client">...instance key...</span>", "y":"..." } } }</pre>
+<pre><span class="note">## 2c. decoded: Client Attestation PoP JWT</span></pre>
+<pre class="jwt by-client newblock">{ "typ": "oauth-client-attestation-pop+jwt", "alg": "ES256" }
+.
+{ "iss": "<span class="client">wimse://acme.agents.platform.example/agent/7f3d9a2e</span>",
+  "aud": "<span class="as">https://as.saas.example</span>",
+  "exp": 1785271980, "jti": "f81a..." }
+<span class="dim"># signed with the instance-held key that cnf above binds.
+# a stolen JIF assertion without this signature gets nothing.</span></pre>
+<pre><span class="note">## 3. AS response</span>
+{ "access_token": "eyJ...", "token_type": "Bearer", "expires_in": 900 }
+
+<span class="note">## 4. using it at the RS (unchanged: plain bearer, RS untouched)</span>
+
+<span class="rs">GET /docs/42 HTTP/1.1</span>
+Host: <span class="rs">api.saas.example</span>
+Authorization: Bearer eyJ...access.token...</pre>
+  </div>
+  <div class="panel seq">
+<pre>
+<span class="client">Client</span>                    <span class="attester">Attester</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
+  |                           |                           |                     |
+  |-- (1) instance pubkey ---&gt;|                           |                     |
+  |                           |                           |                     |
+  |&lt;- (2) Attestation JWT ----|                           |                     |
+<span class="dim">        cnf = instance key</span>
+  |                           |                           |                     |
+  |-- (3) POST /token: attestation hdrs + JIF grant -----&gt;|                     |
+  |                           |                           |                     |
+<span class="dim">            OAuth-Client-Attestation (attester-signed)</span>
+  |                           |                           |                     |
+<span class="dim">            OAuth-Client-Attestation-PoP (instance-signed)</span>
+  |                           |                           |                     |
+<span class="dim">                                  (4) AS: attester sig; PoP vs cnf; grant iss allowlist</span>
+  |                           |                           |                     |
+  |&lt;- (5) access token -----------------------------------|                     |
+<span class="dim">        plain bearer, aud = RS</span>
+  |                           |                           |                     |
+  |-- (6) GET /resource with Authorization: Bearer ----------------------------&gt;|
+  |                           |                           |                     |
+  |&lt;- (7) 200 ------------------------------------------------------------------|
+  |                           |                           |                     |
+</pre>
+<details><summary>mermaid source</summary>
+<pre>sequenceDiagram
+  participant C as Client (instance)
+  participant P as Attester (Platform)
+  participant AS as Authorization Server
+  participant RS as Resource Server
+  C-&gt;&gt;P: (1) instance public key
+  P-&gt;&gt;C: (2) Client Attestation JWT (cnf = instance key)
+  C-&gt;&gt;AS: (3) POST /token + attestation headers + JIF grant
+  AS-&gt;&gt;AS: (4) verify attester sig, PoP vs cnf, grant issuer allowlist
+  AS-&gt;&gt;C: (5) access token (short-lived, aud = RS)
+  C-&gt;&gt;RS: (6) request + Bearer token
+  RS-&gt;&gt;C: (7) resource</pre>
+</details>
+  </div>
+</div>
+
+<h1 style="margin-top:28px">threat comparison</h1>
+<style>
+  table.threats { border-collapse: collapse; margin-top:8px; }
+  .threats th, .threats td { border:1px solid #2a2e36; padding:6px 12px; text-align:left; vertical-align:top; }
+  .threats th { background:#22262c; color:#ccc; font-weight:normal; }
+  .threats td.good { color:#78d67a; }
+  .threats td.bad  { color:#ff6b6b; }
+  .threats td.part { color:#e5c07b; }
+  .fn { color:#9aa5b1; font-size:12px; margin-top:8px; line-height:1.5; max-width:110ch; }
+</style>
+<table class="threats">
+  <tr><th>attacker steals...</th><th>grant only</th><th>grant + DPoP</th><th>CIMD/pkjwt + grant</th><th>CIMD/pkjwt + grant + DPoP</th><th>attest + grant</th></tr>
+  <tr><th>the assertion alone<br><span style="color:#777">(log leak, queue, cross-domain handoff)</span></th>
+      <td class="bad">redeem once, within exp</td>
+      <td class="bad">redeem with own DPoP key</td>
+      <td class="good">worthless — needs Platform client key*</td><td class="good">worthless — needs Platform client key*</td>
+      <td class="good">worthless — needs instance key</td></tr>
+  <tr><th>a whole token request<br><span style="color:#777">(inside TLS termination)</span></th>
+      <td class="part">1 redemption if the thief wins the race (jti cache)</td>
+      <td class="part">replay window only; proof jti cache closes it</td>
+      <td class="part">replay window only; jti caches close it</td><td class="part">replay window only; jti caches close it</td>
+      <td class="part">replay window only; PoP jti cache closes it</td></tr>
+  <tr><th>a durable key<br><span style="color:#777">(the long-lived secret)</span></th>
+      <td>no client key exists (issuer key = game over, same for every column)</td>
+      <td class="good">instance key &rarr; that instance's tokens only (no extra platform key)</td>
+      <td class="bad">Platform client key &rarr; redeems every tenant's stolen assertions</td><td class="bad">Platform client key &rarr; redeems every tenant's stolen assertions</td>
+      <td class="bad">instance keys are per-instance, BUT the attester key is platform-wide (&asymp; issuer key) &mdash; as bad as the pkjwt client key</td></tr>
+  <tr><th>an access token</th>
+      <td class="bad">usable (bearer)</td>
+      <td class="good">useless without instance key</td>
+      <td class="bad">usable (bearer; no DPoP layer)</td><td class="good">useless (DPoP layer)</td>
+      <td class="bad">usable (still bearer; add DPoP)</td></tr>
+  <tr><th>who must change</th>
+      <td class="good">AS only</td>
+      <td class="bad">AS + RS</td>
+      <td class="good">AS only</td><td class="part">AS only (AS+RS with the DPoP layer)</td>
+      <td class="good">AS only</td></tr>
+</table>
+<div class="fn">
+* only with the binding rule stated in the profile: assertions from allowlisted
+issuer I are accepted solely from its bound, authenticated client C. RFC 7523
+does not link the grant to client authentication by itself.<br><br>
+Key insight of row 2: against a whole-request thief, every shape degrades to
+"replay within the freshness window" — the wire carries the pkjwt / PoP
+artifacts right next to the assertion, so signing buys nothing there. What
+actually defends that vector is short exp + jti replay caching, which the
+bearer floor already mandates.<br><br>
+So pkjwt (or attest) earns its keep only when the assertion can exist APART
+from the caller's key material — i.e. row 1 vectors:<br>
+&nbsp;&nbsp;1. issuer and caller in different domains (Enterprise IdP issues the
+grant, Platform redeems it: the assertion crosses a boundary alone);<br>
+&nbsp;&nbsp;2. assertion-at-rest leaks (logs, queues, analytics pipelines — the
+client key is never in those);<br>
+&nbsp;&nbsp;3. the AS wants a caller identity for quota / kill-switch / audit,
+independent of issuer trust.<br>
+Single-domain, platform-fronted, wire-capture-only threat model: pkjwt adds
+little; jti + short exp already do the work. pkjwt vs attest is then just
+which boundary you're defending: issuer&ne;caller (pkjwt, platform key) vs
+platform&ne;instance (attest, per-instance keys).<br><br>
+Row 3 caveat: attest's per-instance advantage applies only to the EDGE keys.
+Its root (the attester key) is a platform-level durable key like the pkjwt
+client key &mdash; steal it and you can attest your own key for any sub,
+re-enabling every stolen assertion; if attester key == issuer key it is
+literally game over. At the root, pkjwt and attest are equivalent; only DPoP
+adds no extra platform-level key at all.
+</div>
+
+<script>
+  document.querySelectorAll('.tabs button[data-tab]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.tabbody').forEach(t => t.classList.remove('show'));
+    document.getElementById('tab-' + b.dataset.tab).classList.add('show');
+  });
+  document.querySelectorAll('.tabbody').forEach(tab => {
+    tab.querySelectorAll('.views button').forEach(b => b.onclick = () => {
+      tab.querySelectorAll('.views button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      tab.querySelector('.panel.raw').classList.toggle('show', b.dataset.view === 'raw');
+      tab.querySelector('.panel.seq').classList.toggle('show', b.dataset.view === 'seq');
+    });
+  });
+</script>
+</body></html>
