@@ -4,8 +4,8 @@
 
 Network Working Group                                        P. Carleton
 Internet-Draft                                                 Anthropic
-Intended status: Informational                              27 July 2026
-Expires: 28 January 2027
+Intended status: Informational                              28 July 2026
+Expires: 29 January 2027
 
 
    Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent
@@ -19,12 +19,12 @@ Abstract
    customer.  Each agent is identified by an opaque, non-reassignable
    agent identifier; the agent obtains access tokens by presenting a JWT
    authorization grant (RFC 7523), signed by the platform's per-tenancy
-   issuer, in the assertion parameter at the resource server's
-   authorization server.  Trust is established once, by reference to the
-   issuer's published metadata and keys; agent creation requires no per-
-   agent step at the resource server; and authorization is expressed
-   over platform-asserted agent properties that resource servers map
-   locally to permissions.
+   issuer, in the assertion parameter at the authorization server
+   protecting the resource server.  Trust is established once, by
+   reference to the issuer's published metadata and keys; agent creation
+   requires no per-agent step at the resource server; and authorization
+   is expressed over platform-asserted agent properties that resource
+   servers map locally to permissions.
 
 About This Document
 
@@ -69,7 +69,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 28 January 2027.
+   This Internet-Draft will expire on 29 January 2027.
 
 Copyright Notice
 
@@ -99,12 +99,13 @@ Table of Contents
    7.  Agent Instantiation
    8.  Agent Properties and Authorization
    9.  Attribution
-   10. Open Issues
-   11. Security Considerations
-   12. IANA Considerations
-   13. References
-     13.1.  Normative References
-     13.2.  Informative References
+   10. Retirement and Lifecycle
+   11. Open Issues
+   12. Security Considerations
+   13. IANA Considerations
+   14. References
+     14.1.  Normative References
+     14.2.  Informative References
    Acknowledgments
    Author's Address
 
@@ -126,9 +127,9 @@ Table of Contents
    infrastructure providers, but its claim and policy semantics are
    defined per provider rather than portably, and it has not been
    applied between agent platforms and SaaS resource servers.  The Model
-   Context Protocol's Workload Identity Federation extension [MCP-WIF]
-   defines the corresponding wire mechanics for MCP servers; this
-   profile is intended to be interoperable with it.
+   Context Protocol's proposed Workload Identity Federation extension
+   [MCP-WIF] defines the corresponding wire mechanics for MCP servers;
+   this profile is intended to be interoperable with it.
 
    This document specifies a profile of [AIMS] for that deployment
    pattern.  The resulting mechanism is called just-in-time identity
@@ -150,39 +151,39 @@ Table of Contents
    [AIMS] remains the base specification for anything not restated here.
    This profile constrains [AIMS] as follows:
 
-      +================+=========+==================================+
-      | AIMS component | Here    | Relationship                     |
-      +================+=========+==================================+
-      | Identifiers    | Section | Constrained: opaque, immutable,  |
-      | (Sec. 6)       | 4       | non-reassignable agent           |
-      |                |         | identifier per [WIMSE-ID],       |
-      |                |         | carried as sub                   |
-      +----------------+---------+----------------------------------+
-      | Credentials    | Section | Constrained: [RFC7523] JWT       |
-      | (Sec. 7),      | 5       | authorization grant (assertion), |
-      | Authentication |         | platform-signed; no per-agent    |
-      | (Sec. 9)       |         | credential; client identity      |
-      |                |         | deliberately unspecified         |
-      +----------------+---------+----------------------------------+
-      | Credential     | Section | Constrained: platform-internal   |
-      | Provisioning   | 7       |                                  |
-      | (Sec. 8)       |         |                                  |
-      +----------------+---------+----------------------------------+
-      | Authorization  | Section | Added: standard property claims; |
-      | (Sec. 10, case | 8       | by-reference trust (Section 6)   |
-      | 10.4.2)        |         |                                  |
-      +----------------+---------+----------------------------------+
-      | Monitoring/    | Section | TODO                             |
-      | Remediation    | 10      |                                  |
-      | (Sec. 11)      |         |                                  |
-      +----------------+---------+----------------------------------+
-      | Policy (Sec.   | --      | Inherited                        |
-      | 12),           |         |                                  |
-      | Compliance     |         |                                  |
-      | (Sec. 13)      |         |                                  |
-      +----------------+---------+----------------------------------+
+   +================+=========+=======================================+
+   | AIMS component | Here    | Relationship                          |
+   +================+=========+=======================================+
+   | Identifiers    | Section | Constrained: opaque, immutable, non-  |
+   | (Sec. 6)       | 4       | reassignable agent identifier,        |
+   |                |         | RECOMMENDED to be a Workload          |
+   |                |         | Identifier [WIMSE-ID], carried as sub |
+   +----------------+---------+---------------------------------------+
+   | Credentials    | Section | Constrained: [RFC7523] JWT            |
+   | (Sec. 7),      | 5       | authorization grant (assertion),      |
+   | Authentication |         | platform-signed; no per-agent         |
+   | (Sec. 9)       |         | credential; client identity           |
+   |                |         | deliberately unspecified              |
+   +----------------+---------+---------------------------------------+
+   | Credential     | Section | Constrained: platform-internal        |
+   | Provisioning   | 7       |                                       |
+   | (Sec. 8)       |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Authorization  | Section | Added: standard property claims; by-  |
+   | (Sec. 10, case | 8       | reference trust (Section 6)           |
+   | 10.4.2)        |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Monitoring/    | Section | TODO                                  |
+   | Remediation    | 11      |                                       |
+   | (Sec. 11)      |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Policy (Sec.   | --      | Inherited                             |
+   | 12),           |         |                                       |
+   | Compliance     |         |                                       |
+   | (Sec. 13)      |         |                                       |
+   +----------------+---------+---------------------------------------+
 
-                                  Table 1
+                                 Table 1
 
 1.2.  Relationship to WIMSE and SPIFFE
 
@@ -218,9 +219,13 @@ Table of Contents
    Agent Property:  A Platform-asserted attribute carried as a claim in
       the authorization grant.
 
-   Resource Server (RS):  A service holding customer resources, used
-      here for the combined authorization-server-plus-resource role a
-      SaaS product presents.
+   Authorization Server (AS):  The OAuth authorization server at which
+      Agents present authorization grants and obtain access tokens;
+      commonly, but not necessarily, operated by the same vendor as the
+      Resource Server it protects.
+
+   Resource Server (RS):  The service holding customer resources,
+      accessed with the access tokens the Authorization Server issues.
 
    Enterprise IdP:  The customer's identity provider (optional).
 
@@ -244,15 +249,24 @@ Table of Contents
    Resource Servers MUST NOT parse or pattern-match the Agent Identifier
    for authorization; single-agent policy is an exact match on it.
 
-   TODO: Agent Identifier as opaque string vs. URI form (cf.
-   [WIMSE-ID]).
+   The Agent Identifier MAY be, and is RECOMMENDED to be, a URI-form
+   Workload Identifier [WIMSE-ID] with an opaque path; a bare opaque
+   string is also permitted.  URI form costs no opacity -- the path
+   remains meaningful only to the issuing Platform -- and carries the
+   trust boundary inside the identifier's authority component, which is
+   what relying parties that evaluate only subject and audience need
+   (Section 11).  When the Agent Identifier is a URI, the Authorization
+   Server validates its authority component against the allowlisted
+   issuer's tenancy once, at token issuance; Resource Servers treat the
+   complete identifier as an opaque, exact-match key regardless of form
+   and MUST NOT derive trust from its components.
 
 5.  Authorization Grant
 
-   The Agent obtains access tokens from the Resource Server's
-   authorization server by presenting a JWT as an authorization grant
-   per [RFC7523], Section 2.1, issued by the Platform as a third party
-   in the sense of [RFC7521], Section 5.2.  The token request carries
+   The Agent obtains access tokens from the Authorization Server by
+   presenting a JWT as an authorization grant per [RFC7523],
+   Section 2.1, issued by the Platform as a third party in the sense of
+   [RFC7521], Section 3.  The token request carries
    grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in
    the assertion parameter, and the target resource in the resource
    parameter [RFC8707].  This profile deliberately does not specify the
@@ -265,19 +279,26 @@ Table of Contents
    natural when the authorization grant's issuer is the customer's
    Enterprise IdP rather than the Platform (obtained, e.g., by token
    exchange [RFC8693] with the IdP).  This document intentionally leaves
-   that composition open rather than fully specifying it (Section 10).
+   that composition open rather than fully specifying it (Section 11).
 
-   In the assertion, iss is the tenancy's issuer identifier, sub is the
-   Agent Identifier, and aud is the authorization server's token
-   endpoint URL; exp, iat, and a unique jti are REQUIRED.  The assertion
-   is signed under a key in the issuer's published JWK Set [RFC7517].
-   The authorization server MUST resolve the signing key by iss
-   (Section 6), not via a client registration.  The assertion carries
-   the Agent's Properties (Section 8), and the authorization server MUST
-   make them available to its Resource Server's authorization decision.
-   Authorization servers supporting this profile MUST include
-   urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
-   in their metadata [RFC8414].
+   In the assertion, iss is the tenancy's issuer identifier and sub is
+   the Agent Identifier.  The aud SHOULD contain both the Authorization
+   Server's issuer identifier and its token endpoint URL, and an
+   Authorization Server supporting this profile MUST accept an assertion
+   whose aud includes either value ([RFC7523] itself leaves the audience
+   strings to out-of-band configuration).  [RFC7523BIS] adds the issuer
+   identifier as an audience option for authorization grants (while
+   restricting client-authentication assertions, a different slot, to it
+   alone); carrying both values keeps an assertion valid across deployed
+   and future processing.  exp, iat, and a unique jti are REQUIRED.  The
+   assertion is signed under a key in the issuer's published JWK Set
+   [RFC7517].  The Authorization Server MUST resolve the signing key by
+   iss (Section 6), not via a client registration.  The assertion
+   carries the Agent's Properties (Section 8), and the Authorization
+   Server MUST make them available to the Resource Server's
+   authorization decision.  Authorization Servers supporting this
+   profile MUST include urn:ietf:params:oauth:grant-type:jwt-bearer in
+   grant_types_supported in their metadata [RFC8414].
 
    Figure 1 shows an example token request (with extra line breaks for
    display purposes only):
@@ -297,9 +318,10 @@ Table of Contents
    (Section 8):
 
    {
-     "iss": "https://agents.platform.example/acme",
-     "sub": "agent_7f3d9a2e",
-     "aud": "https://as.saas.example/token",
+     "iss": "https://acme.agents.platform.example",
+     "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+     "aud": ["https://as.saas.example",
+             "https://as.saas.example/token"],
      "exp": 1785271980,
      "iat": 1785271680,
      "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
@@ -323,8 +345,8 @@ Table of Contents
 
 6.  Trust Establishment
 
-   The Customer Administrator once records, at the Resource Server, an
-   allowlist entry binding one issuer to one tenancy: the issuer
+   The Customer Administrator once records, at the Authorization Server,
+   an allowlist entry binding one issuer to one tenancy: the issuer
    identifier, from which the issuer's metadata and JWK Set location are
    discovered per [OIDC-DISCOVERY] (retrieved over https [RFC9525]), and
    the initial mapping from Properties to permissions (Section 8).
@@ -333,20 +355,32 @@ Table of Contents
    multiple customers MUST use a distinct issuer per tenancy: the issuer
    is the trust boundary the allowlist expresses, and a shared issuer
    would move tenancy enforcement into claim evaluation at every
-   Resource Server -- including those that can evaluate only subject and
-   audience (Section 10).  This deliberately tightens the corresponding
-   SHOULD in [MCP-WIF].
+   Authorization Server -- including relying parties that can evaluate
+   only subject and audience (Section 11).  The proposed MCP Workload
+   Identity Federation extension [MCP-WIF] makes per-tenant signing keys
+   a SHOULD for authorization servers; this profile deliberately
+   tightens that boundary to a per-tenancy issuer MUST.
+
+   Multi-issuer operation is scoped by issuer throughout.  An
+   Authorization Server MUST resolve and cache keys per allowlist entry
+   and MUST NOT merge key sets across issuers, and it MUST interpret
+   sub, jti, and the property-to-permission mapping only within the
+   scope of the presenting iss.  An Agent Identifier is unique within
+   its issuer, not globally: policy and audit records are keyed on the
+   (iss, sub) pair, or on the complete URI-form identifier, which
+   carries the tenancy in its authority component.
 
 7.  Agent Instantiation
 
    Creating an Agent is Platform-internal and MUST NOT require any
-   ahead-of-time interaction with the Resource Server, its authorization
-   server, an Enterprise IdP, or the Customer Administrator.  A Resource
-   Server first learns that an Agent exists when the Agent presents its
-   first authorization grant: it MUST accept a previously-unseen Agent
-   Identifier presented as sub under an allowlisted issuer and MUST
-   authorize it via Section 8 rather than by identifier structure.
-   Agents are not dynamically registered clients [RFC7591].
+   ahead-of-time interaction with the Resource Server, the Authorization
+   Server, an Enterprise IdP, or the Customer Administrator.  The
+   Authorization Server first learns that an Agent exists when the Agent
+   presents its first authorization grant: it MUST accept a previously-
+   unseen Agent Identifier presented as sub under an allowlisted issuer,
+   and authorization -- at the Authorization Server and the Resource
+   Server alike -- is via Section 8, never identifier structure.  Agents
+   are not dynamically registered clients [RFC7591].
 
    Optionally, a Platform MAY project Agents into an Enterprise IdP
    (e.g., as [SCIM-AGENT] resources) for inventory and lifecycle
@@ -376,11 +410,31 @@ Table of Contents
    Properties, and jti; internal fan-out via [TXN-TOKENS] rather than
    forwarding the access token.
 
-10.  Open Issues
+10.  Retirement and Lifecycle
 
-   *  Resource Servers that authorize only on subject and audience
-      (e.g., cloud IAM federation trust policies) and cannot evaluate
-      Property predicates.
+   Retirement is expressed by cessation: the Platform stops signing
+   assertions for a retired Agent, so residual access is bounded by the
+   remaining lifetime of any outstanding assertion plus the lifetime of
+   any access token already issued.  Assertion and access-token
+   lifetimes SHOULD be chosen with this bound in mind.  No signal yet
+   informs an Authorization Server that an Agent Identifier is
+   permanently retired; that gap is shared with neighboring workload
+   identity ecosystems, whose common baseline is likewise short
+   credential lifetimes plus ceasing issuance (Section 11).
+
+   Broader lifecycle management is out of scope for this document.  In
+   particular, resources that come to be owned by an Agent (documents,
+   records, long-lived artifacts) need succession planning when the
+   Agent is retired; this profile makes the retirement event's access
+   consequences legible, but does not manage its downstream effects.
+
+11.  Open Issues
+
+   *  Relying parties that authorize only on subject and audience (e.g.,
+      cloud IAM federation trust policies) and cannot evaluate Property
+      predicates; URI-form Agent Identifiers (Section 4) carry the
+      tenancy inside the identifier for this case, but the residual gap
+      is unassessed.
 
    *  Proof-of-possession: the authorization grant is bearer; see
       Section 5.
@@ -391,35 +445,32 @@ Table of Contents
       redundant in the former case and load-bearing in the latter; what,
       if anything, client_id means in each case.
 
-   *  Staleness signaling in place of per-agent revocation (issuer- or
-      Property-scoped epoch versus event push versus lifetime alone).
-
-   *  Retirement: no signal currently informs a Resource Server that an
-      Agent Identifier is permanently retired.
-
-   *  Agent Identifier format: opaque string versus URI.
+   *  Staleness and retirement signaling in place of per-agent
+      revocation (issuer- or Property-scoped epoch versus event push
+      versus lifetime alone, Section 10); a gap shared with neighboring
+      workload identity ecosystems.
 
    *  Addressing: whether an Agent needs a human-usable,
       "@"-referenceable address (to share a resource with an agent the
       way one shares with an email address), distinct from the display
       name and the Agent Identifier.
 
-11.  Security Considerations
+12.  Security Considerations
 
    TODO: unseen agent identifiers under trusted issuers; issuer
    allowlist as the trust boundary; tenant confusion at multi-issuer
-   Resource Servers; bearer-assertion theft and assertion lifetime;
-   Platform as root of trust; credential non-exposure to the model;
-   automated trust establishment.
+   Authorization Servers (Section 6); bearer-assertion theft and
+   assertion lifetime; Platform as root of trust; credential non-
+   exposure to the model; automated trust establishment.
 
-12.  IANA Considerations
+13.  IANA Considerations
 
    This document has no IANA actions at this time; provisional claim
    names (Section 8) may be registered in a future revision.
 
-13.  References
+14.  References
 
-13.1.  Normative References
+14.1.  Normative References
 
    [AIMS]     Kasselman, P., Lombardo, J., Rosomakho, Y., Campbell, B.,
               Steele, N., and A. Parecki, "AI Agent Authentication and
@@ -480,7 +531,7 @@ Table of Contents
               <https://datatracker.ietf.org/doc/html/draft-ietf-wimse-
               identifier-03>.
 
-13.2.  Informative References
+14.2.  Informative References
 
    [ATTEST-CLIENT-AUTH]
               Looker, T., Bastian, P., and C. Bormann, "OAuth 2.0
@@ -504,16 +555,25 @@ Table of Contents
               identity-assertion-authz-grant-04>.
 
    [MCP-WIF]  Model Context Protocol Community, "Workload Identity
-              Federation (Model Context Protocol ext-auth extension,
-              draft)", n.d., <https://github.com/modelcontextprotocol/
-              ext-auth/blob/main/specification/draft/workload-identity-
-              federation.mdx>.
+              Federation (proposed Model Context Protocol ext-auth
+              extension, pull request 10)", n.d.,
+              <https://github.com/modelcontextprotocol/ext-auth/
+              pull/10>.
 
    [OIDC-CORE]
               Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
               C. Mortimore, "OpenID Connect Core 1.0 incorporating
               errata set 2", December 2023,
               <https://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [RFC7523BIS]
+              Jones, M. B., Campbell, B., Mortimore, C., and F. Skokan,
+              "Updates to OAuth 2.0 JSON Web Token (JWT) Client
+              Authentication and Assertion-Based Authorization Grants",
+              Work in Progress, Internet-Draft, draft-ietf-oauth-
+              rfc7523bis-11, 28 April 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              rfc7523bis-11>.
 
    [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
               P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
