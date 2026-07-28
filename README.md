@@ -1,4 +1,4 @@
-<!-- regenerate: on (set to off if you edit this file) -->
+<!-- regenerate: off -->
 
 # Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent Platforms
 
@@ -9,6 +9,12 @@ This is the working area for the individual Internet-Draft, "Just-in-Time Identi
 * [Individual Draft](https://datatracker.ietf.org/doc/html/draft-carleton-jif)
 * [Compare Editor's Copy to Individual Draft](https://pcarleton.github.io/draft-carleton-jif/#go.draft-carleton-jif.diff)
 
+
+## Companion Material
+
+* [Request shapes](https://pcarleton.github.io/draft-carleton-jif/request-shapes.html) — token request anatomy for the candidate proof-of-possession compositions, with a threat comparison
+* [Decision log](decision-log.md) — design decisions and the alternatives considered
+* [OAuth slots notes](notes/oauth-slots.md) — how the authorization grant relates to client-authentication JWTs
 
 ## Contributing
 
