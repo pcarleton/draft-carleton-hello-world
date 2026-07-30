@@ -16,7 +16,10 @@ resource server.  Trust is established once, by reference to the
 issuer's published metadata and keys; agent creation requires no per-agent
 step at the resource server; and authorization is expressed over
 platform-asserted agent properties that resource servers map locally to
-permissions. 
+permissions.  This profile addresses agents acting on their own behalf;
+access on behalf of a user or other principal is out of scope, though the
+design is intended to compose with existing delegation mechanisms in which
+the agent appears as the actor. 
     " name="description">
 <meta content="xml2rfc 3.34.0" name="generator">
 <meta content="agent identity" name="keyword">
@@ -1097,7 +1100,10 @@ resource server.  Trust is established once, by reference to the
 issuer's published metadata and keys; agent creation requires no per-agent
 step at the resource server; and authorization is expressed over
 platform-asserted agent properties that resource servers map locally to
-permissions.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+permissions.  This profile addresses agents acting on their own behalf;
+access on behalf of a user or other principal is out of scope, though the
+design is intended to compose with existing delegation mechanisms in which
+the agent appears as the actor.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
 </section>
 <section class="note rfcEditorRemove" id="section-note.1">
       <h2 id="name-about-this-document">
@@ -1361,8 +1367,12 @@ standalone OAuth issuer.<a href="#section-1.2-1" class="pilcrow">¶</a></p>
 <a href="#section-1.3" class="section-number selfRef">1.3. </a><a href="#name-scope" class="section-name selfRef">Scope</a>
         </h3>
 <p id="section-1.3-1">In scope: agents acting on their own behalf (<span>[<a href="#AIMS" class="cite xref">AIMS</a>]</span>, Section 10.4.2).  Out
-of scope: on-behalf-of access (see <span>[<a href="#IDJAG" class="cite xref">IDJAG</a>]</span>), legacy integration via static
-credentials, runtime attestation, agent-to-agent protocols.<a href="#section-1.3-1" class="pilcrow">¶</a></p>
+of scope: on-behalf-of access, legacy integration via static credentials,
+runtime attestation, agent-to-agent protocols.  This profile deliberately
+does not specify on-behalf-of flows; the design is intended to compose with
+delegation mechanisms in which the agent appears as the actor rather than
+the subject (e.g., the act claim and actor_token parameter of <span>[<a href="#RFC8693" class="cite xref">RFC8693</a>]</span>,
+or <span>[<a href="#IDJAG" class="cite xref">IDJAG</a>]</span>), and that composition is left to future documents.<a href="#section-1.3-1" class="pilcrow">¶</a></p>
 </section>
 </div>
 </section>
