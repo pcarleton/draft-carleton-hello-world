@@ -149,3 +149,113 @@ vocabulary, avoiding all top-level collisions;
 Outline agreed (slot argument; identifier compatibility; identity-plane
 backing changes nothing at the RS boundary). Drafting waits on O1 and O2
 since both feed the section's content.
+
+### O4 — Agent as grant-subject vs agent as OAuth client
+The expected flashpoint of external review. D3/D4 put the agent in the
+grant slot's sub (RFC 7523 s2.1) and deliberately leave the client slot
+empty; the strongest challenge is that the agent should BE the OAuth
+client, authenticated per RFC 7523 s2.2. Deliberately unresolved in -00;
+both cases at full strength below. Side-by-side request shapes for the
+three scenarios (self-access, user-granted email, enterprise OBO) are in
+notes/client-models.html.
+
+Case for agent==client: the agent is what RFC 6749 calls a client -- it
+initiates token requests, holds keys in the hardened mode (O1), and needs
+the quotas, kill switches, and revocation this draft cites as motivation.
+Deployed AS machinery for managing callers is keyed on client_id (consent
+records, RFC 7009 revocation, per-client limits, client_id in RFC
+7662/9068); under (iss, sub) every adopting AS rebuilds a parallel copy,
+a cost the draft currently understates. The adopted OAuth WG stack points
+this way: CIMD (URL client_ids, zero registration writes, s8.9 prefix
+allowlists), attestation-based client auth (platform-vouched instance
+keys), SPIFFE client auth (workloads as clients). Three internal
+inconsistencies hold regardless of outcome: (a) the Scope pointer to
+IDJAG does not compose with the D4 unauthenticated floor -- IDJAG s4.4.1
+matches the ID-JAG's client_id against an AUTHENTICATED client, and there
+is none; (b) "grant MY email to THAT agent" has no enforceable wire form
+-- an authorization request names a client_id and the agent is not one;
+(c) the unauthenticated floor leaves the AS no caller identity to
+throttle or kill. Agent-as-client yields O1's hardened mode by
+construction (stolen assertion useless without the attested cnf key),
+gives D10 an enforcement surface (platform stops attesting; refresh
+chains die), and names individual agents on consent screens with deployed
+machinery. It also settles the tension O3 must otherwise explain: the
+draft RECOMMENDS Workload Identifiers -- calls agents workloads -- while
+declining the workload-equals-client pattern the WG adopted for
+workloads.
+
+Case for agent==subject (the current design): no adopted document mints a
+client_id per instance. ATTEST-10 s4 REQUIRES attestation sub == the
+shared client_id (instances differ only by cnf key); SPIFFE client auth's
+wildcard CIMD document (s3.1.2, s5.1) exists precisely so the AS-visible
+unit is the family; and both McGuinness individual drafts
+(client-instance-assertion-00, ai-agent-instance-00) keep one logical
+client_id and surface the instance as sub when self-acting and act.sub in
+OBO tokens -- this draft's exact split. Client-per-agent is itself a
+novel composition of three pre-RFC drafts, and it regresses the D3
+adoption floor: jwt-bearer ships in every mainstream AS; ATTEST,
+CIMD-resolving ASes, and CIMD-resolving IdPs ship essentially nowhere.
+The delegation grammar is not missing: act/may_act (RFC 8693 s4.1, s4.4)
+are IANA-registered claims and actor_token (s2.1) is the registered
+second grant-side slot -- delegation has two parties on the grant side by
+design. client_id-keyed machinery assumes low-cardinality application
+identity; family-grouping by client_id prefix is the
+derive-structure-from-identifier move {{identity-model}} forbids for sub,
+while (iss, sub) keeps the family/instance relation structural (D7/D8).
+Per-agent refresh tokens reintroduce the AIMS Section 7 antipattern
+(durable per-agent credentials, instance-key escrow) against the
+no-refresh-token design, and CIMD s8.4.1 retirement is a discretionary
+MAY on an eventual re-fetch versus D10's normative cessation bound. Root
+blast radius is identical either way (O1's sharpened cut: the attester
+key is a platform-level durable key). Deployed proof: GitHub Apps -- one
+client, millions of installations as grant-side subjects. Every debt the
+client case surfaces closes with profile text inside the current
+architecture (below).
+
+Crux: per-agent state (grants, jti replay, audit) scales identically
+under both designs; the choice is which invention the draft signs up for.
+Agent==client inherits deployed client management but must invent
+per-instance client identity -- extending the adopted family-granularity
+stack to instance cardinality (per-agent client_ids, consent and refresh
+custody semantics, IdPs that resolve them): invent new things for client
+management. Agent==subject inherits the registered delegation grammar but
+must invent the management and binding plane on (iss, sub) -- quotas,
+kill switches, token listing, consent binding, act-in-ID-JAG: invent new
+things for representing delegations. No third stack exists; the
+tiebreakers are the adoption floor and which primary key the ecosystem's
+per-agent state accretes under.
+
+Deciding agent==client commits the draft to: reversing D3/D4; normative
+dependence on CIMD-02 + ATTEST-10 (+ IDJAG-04 for OBO), all pre-RFC and
+moving; URL-form client_ids and new client-auth code paths through every
+AS layer, narrowing the token-endpoint-only pitch to nothing; owning the
+family/instance data model and family-level consent semantics (today
+formalized only in individual -00s); refresh custody for ephemeral
+instances; near-term IdP-side registration of the agent family for OBO;
+and two RS token shapes (sub = agent for self-access, sub = user +
+client_id = agent for OBO). In exchange: per-agent consent, revocation,
+quotas, and introspection arrive already keyed on client_id, and O1
+largely dissolves by construction.
+
+Deciding agent==subject commits the draft to: one normative sentence
+closing the IDJAG loose end (in the Enterprise-IdP composition the
+Platform MUST authenticate as an OAuth client -- D4's reserved
+composition -- with the agent as actor_token at the exchange and act in
+the ID-JAG, plus an interop note, since IDJAG-04 does not yet specify
+act); a per-agent consent binding (RFC 9396 authorization_details naming
+the agent; grant keyed (user, tenancy client, agent (iss, sub));
+redemption and refresh require a matching fresh assertion as actor_token)
+that no off-the-shelf AS enforces today; honest costing of the (iss, sub)
+management plane plus at least a SHOULD for client authentication above
+the floor; a sub disambiguator so RSes do not misread agent tokens as
+human ones; and the O3 text arguing subject-granularity instance identity
+versus family-granularity client identity. In exchange: the D3 adoption
+floor holds, no per-agent durable credentials exist to steal or escrow,
+and retirement keeps its normative bound.
+
+Hybrid candidates: tiered profile (base = today's subject-form
+jwt-bearer; OBO tier = IDJAG with mandatory platform client auth and
+agent-as-actor; hardened tier = O1 row 3); or a per-agent client
+"upgrade" reserved for user-granted personal resources (cost: the same
+agent appears as client_id in one flow and sub in others). See
+notes/oauth-slots.md.

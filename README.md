@@ -13,6 +13,7 @@ This is the working area for the individual Internet-Draft, "Just-in-Time Identi
 ## Companion Material
 
 * [Request shapes](https://pcarleton.github.io/draft-carleton-jif/request-shapes.html) — token request anatomy for the candidate proof-of-possession compositions, with a threat comparison
+* [Client models](https://pcarleton.github.io/draft-carleton-jif/client-models.html) — agent-as-OAuth-client vs agent-as-grant-subject, three scenarios worked both ways
 * [Decision log](decision-log.md) — design decisions and the alternatives considered
 * [OAuth slots notes](notes/oauth-slots.md) — how the authorization grant relates to client-authentication JWTs
 
