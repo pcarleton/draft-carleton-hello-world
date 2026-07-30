@@ -8,8 +8,7 @@ Intended status: Informational                              30 July 2026
 Expires: 31 January 2027
 
 
-   Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent
-                               Platforms
+       Just-in-Time Identity Federation (JIF) for Agent Platforms
                        draft-carleton-jif-latest
 
 Abstract
