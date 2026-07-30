@@ -1,0 +1,479 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>client models</title>
+<style>
+  body { background:#14161a; color:#d8dee9; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; margin:20px; }
+  h1 { font-size:15px; color:#eee; }
+  h2 { font-size:13px; margin:0 0 6px; }
+  h2.mclient { color:#c792ea; }
+  h2.msubject { color:#78d67a; }
+  .tabs { margin: 10px 0; }
+  .tabs button { background:#22262c; color:#aaa; border:1px solid #333; padding:6px 14px; cursor:pointer; font:inherit; }
+  .tabs button.active { background:#2f3540; color:#fff; border-bottom:2px solid #4da3ff; }
+  .tabbody { display:none; } .tabbody.show { display:block; }
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } }
+  .col { min-width:0; }
+  pre { background:#1b1e24; border:1px solid #2a2e36; padding:14px 16px; line-height:1.5; overflow-x:auto; }
+  .scenario { color:#9aa5b1; line-height:1.5; }
+  .commentary { color:#9aa5b1; line-height:1.5; border-left:3px solid #2a2e36; padding-left:10px; }
+  .intro, .debts { color:#9aa5b1; max-width:110ch; line-height:1.6; }
+  .debts li { margin-bottom:8px; }
+  a { color:#4da3ff; }
+</style></head>
+<body>
+<h1>the client-model question: agent = OAuth client vs agent = grant subject</h1>
+<p class="intro">The most contentious design question in
+<a href="draft-carleton-jif.html">draft-carleton-jif</a>: does each agent
+instance get its own client_id and authenticate in the client-auth slot
+(left column, <span style="color:#c792ea">agent&nbsp;=&nbsp;client</span>),
+or does the agent stay the subject of the platform-signed authorization
+grant with the client role left to the platform (right column,
+<span style="color:#78d67a">agent&nbsp;=&nbsp;subject</span>, the current
+draft)? Three scenarios, worked both ways. Companion:
+<a href="request-shapes.html">request shapes</a>. Status and full
+arguments: decision-log O4 in the repo.</p>
+<p class="intro"><b style="color:#ccc">The crux:</b> Both sides agree the state that actually scales per agent (grants, jti replay, audit) grows identically under either design; the irreducible choice is which set of inventions the draft signs up for, because neither exists fully today. Agent==client inherits deployed, client_id-keyed management machinery but must invent per-instance client identity: extending the adopted family-granularity stack (CIMD/ATTEST/SPIFFE) to instance cardinality, with per-agent client_ids, family-vs-instance consent semantics, refresh custody for ephemeral instances, and IdPs that resolve per-agent identifiers -- invent new things for client management. Agent==subject inherits the registered delegation grammar (sub, act, actor_token) but must invent the management and binding plane on (iss, sub): per-agent quotas, kill switches, token listing, the consent-binding rule, and the act-in-ID-JAG composition, none of which any deployed AS enforces -- invent new things for representing delegations. There is no third stack; the tiebreakers are the adoption floor (jwt-bearer everywhere vs ATTEST/CIMD nearly nowhere) and which primary key -- client_id or (iss, sub) -- the ecosystem's per-agent state should accrete under.</p>
+
+<div class="tabs">
+  <button data-tab="self" class="active">self-access</button>
+  <button data-tab="email">user grants email</button>
+  <button data-tab="obo">enterprise OBO</button>
+</div>
+<div class="tabbody show" id="tab-self">
+<div class="cols">
+<div class="col">
+<h2 class="mclient">agent = OAuth client</h2>
+<p class="scenario">Support Triage Agent 7f3d9a2e, hosted by Acme's tenancy on the platform, fetches tickets from its own store at api.saas.example. No user in the loop. The admin has one allowlist row at as.saas.example: client_id prefix https://acme.agents.platform.example/ vouched by attester issuer https://acme.agents.platform.example (keys via the same OIDC-discovery JWKS the current JIF draft already fetches).</p>
+<pre>POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+OAuth-Client-Attestation: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24rand0IiwiYWxnIjoiRVMyNTYi...
+OAuth-Client-Attestation-PoP: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24tcG9wK2p3dCIsImFsZyI6IkVTMjU2In0...
+
+grant_type=client_credentials
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2Fagents%2F7f3d9a2e
+&amp;scope=tickets.read+tickets.write
+&amp;resource=https%3A%2F%2Fapi.saas.example%2F
+
+OAuth-Client-Attestation JWT, signed by the tenancy issuer key (draft-ietf-oauth-attestation-based-client-auth-10 s4):
+{"typ":"oauth-client-attestation+jwt","alg":"ES256","kid":"2026-07-14"}
+.
+{
+  "iss": "https://acme.agents.platform.example",
+  "sub": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "cnf": {"jwk": {"kty":"EC","crv":"P-256","x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU","y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"}},
+  "iat": 1785271680,
+  "exp": 1785272280,
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}
+(signature: platform tenancy key)
+
+OAuth-Client-Attestation-PoP JWT, signed by the instance key bound in cnf (s5.1):
+{"typ":"oauth-client-attestation-pop+jwt","alg":"ES256"}
+.
+{
+  "aud": "https://as.saas.example",
+  "jti": "d0c17c0f-8a41-4f4a-9d3e-52b2e7a1c9b4",
+  "iat": 1785271680
+}
+(signature: instance key)
+
+Issued access token (RFC 9068 shape):
+{
+  "iss": "https://as.saas.example",
+  "sub": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "client_id": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "aud": "https://api.saas.example/",
+  "scope": "tickets.read tickets.write",
+  "exp": 1785272280,
+  "namespace": "acme/support",
+  "roles": ["responder"]
+}</pre>
+<p class="commentary">Same admin surface as JIF today: one allowlist row per tenancy, keys by reference. The AS validates the attestation signature from the cached tenancy JWKS, prefix-matches sub against the allowlist, verifies the PoP against cnf, checks jti replay (ATTEST s11.1), and never fetches anything per-agent. The agent Properties ride in the attestation and map to permissions exactly as the draft's Properties section intends; nothing about that design is lost. Note what this buys over the JIF bearer grant with zero extra admin work: a stolen request body is useless because issuance requires the instance-held cnf key, which is O1's hardened mode arrived at by construction rather than by a bolted-on binding rule.</p>
+</div>
+<div class="col">
+<h2 class="msubject">agent = grant subject (current draft)</h2>
+<p class="scenario">Support Triage Agent 7f3d9a2e, hosted in Acme's tenancy on the platform, fetches tickets from its own store at api.saas.example. No user in the loop. Admin surface: one allowlist row at as.saas.example binding issuer https://acme.agents.platform.example to Acme's tenancy, keys by OIDC-discovery JWKS reference (the draft's existing Trust Establishment section, unchanged). Floor shape shown first; hardened shape (O1 row 3) adds two headers and one binding rule, with the agent still the SUBJECT.</p>
+<pre>POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQifQ...
+&amp;resource=https%3A%2F%2Fapi.saas.example%2F
+
+Assertion decoded (RFC 7523 s2.1 authorization grant, third-party issuer per RFC 7521 s3):
+{"alg":"ES256","kid":"2026-07-14"}
+.
+{
+  "iss": "https://acme.agents.platform.example",
+  "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+  "aud": ["https://as.saas.example", "https://as.saas.example/token"],
+  "exp": 1785271980,
+  "iat": 1785271680,
+  "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support",
+  "groups": ["support-eng"],
+  "roles": ["responder"],
+  "ctx": "channel:C0123456789"
+}
+(signature: tenancy issuer key, resolved by iss from the allowlist, never from a client registration)
+
+Hardened variant (O1 row 3): same request body, plus attestation-based client authentication in the CLIENT slot, agent unchanged in the GRANT slot:
+
+OAuth-Client-Attestation: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24rand0IiwiYWxnIjoiRVMyNTYiLCJraWQiOiIyMDI2LTA3LTE0In0...
+{
+  "iss": "https://acme.agents.platform.example",
+  "sub": "https://acme.agents.platform.example/",
+  "cnf": {"jwk": {"kty":"EC","crv":"P-256","x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU","y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"}},
+  "iat": 1785271680,
+  "exp": 1785272280
+}
+(sub = the TENANCY's client identity per ATTEST-10 s4, where attestation sub IS the client_id -- all instances share it, per-instance material is the cnf key; signature: tenancy attester key)
+
+OAuth-Client-Attestation-PoP: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24tcG9wK2p3dCIsImFsZyI6IkVTMjU2In0...
+{
+  "aud": "https://as.saas.example",
+  "jti": "d0c17c0f-8a41-4f4a-9d3e-52b2e7a1c9b4",
+  "iat": 1785271680
+}
+(signature: instance-held cnf key)
+
+Binding rule (JIF profile text, one sentence): assertions from allowlisted issuer I are accepted only on requests authenticated by I's attested client, and the AS MAY require the attestation to cover the presenting instance.
+
+Issued access token (both variants):
+{
+  "iss": "https://as.saas.example",
+  "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+  "aud": "https://api.saas.example/",
+  "scope": "tickets.read tickets.write",
+  "exp": 1785272280,
+  "namespace": "acme/support",
+  "roles": ["responder"]
+}</pre>
+<p class="commentary">Floor variant is the one grant type every mainstream AS already ships (D3) -- a config change, not new client-auth code paths. Hardened variant delivers the advocate's headline security property (stolen request body useless without the instance-held cnf key) via the IDENTICAL ATTEST mechanics, proving slot choice and proof-of-possession are orthogonal: nothing about assertion-theft protection requires the agent to become the client. Note the attestation sub: per ATTEST-10 s4 it is the client_id, shared across instances -- the adopted draft itself refuses per-instance client_ids, which is the advocate's design, not the WG's. Root blast radius is identical either way (attester key is a platform-level durable key, per O1's sharpened analysis). Zero per-agent rows anywhere; the agent is attributed uniformly in sub.</p>
+</div>
+</div>
+</div><div class="tabbody" id="tab-email">
+<div class="cols">
+<div class="col">
+<h2 class="mclient">agent = OAuth client</h2>
+<p class="scenario">The author's convenience scenario, worked end to end. Paul wants Support Triage Agent 7f3d9a2e, and only that agent, to read his mailbox at mailco. The agent's client_id is a CIMD URL under the platform tenancy origin. The same client_id continues doing Example 1's client_credentials against its own store with no user in the loop.</p>
+<pre>Step 1, authorization request (browser):
+GET /authorize?response_type=code
+  &amp;client_id=https%3A%2F%2Facme.agents.platform.example%2Fagents%2F7f3d9a2e
+  &amp;redirect_uri=https%3A%2F%2Facme.agents.platform.example%2Fagents%2F7f3d9a2e%2Fcallback
+  &amp;scope=email.read
+  &amp;state=af0ifjsldkj
+  &amp;code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &amp;code_challenge_method=S256 HTTP/1.1
+Host: as.mailco.example
+
+Step 2, AS dereferences the client_id (CIMD-02 s5; validation per s4: client_id string-match, https, no redirects) and renders consent from:
+{
+  "client_id": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "client_name": "Support Triage Agent",
+  "client_uri": "https://platform.example/a/acme/support-triage",
+  "redirect_uris": ["https://acme.agents.platform.example/agents/7f3d9a2e/callback"],
+  "token_endpoint_auth_method": "private_key_jwt",
+  "jwks_uri": "https://acme.agents.platform.example/agents/7f3d9a2e/jwks"
+}
+Consent screen: "Support Triage Agent (acme.agents.platform.example) wants to: read your email." paul@acme.example approves.
+
+Step 3, token request:
+POST /token HTTP/1.1
+Host: as.mailco.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&amp;code=SplxlOBeZQQYbYS6WxSbIA
+&amp;redirect_uri=https%3A%2F%2Facme.agents.platform.example%2Fagents%2F7f3d9a2e%2Fcallback
+&amp;code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2Fagents%2F7f3d9a2e
+&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6ImFnZW50LTdmM2Q5YTJlLTAxIn0...
+
+client_assertion decoded (RFC 7523 s2.2; key published at the agent's jwks_uri, mandatory once declared per CIMD s8.2):
+{"alg":"ES256","kid":"agent-7f3d9a2e-01"}
+.
+{
+  "iss": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "sub": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "aud": "https://as.mailco.example",
+  "exp": 1785271980,
+  "jti": "3b1f0a77-52c1-4c4e-8d2a-9e5f6c7d8e9f"
+}
+(signature: agent instance key)
+
+Step 4, token response:
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 600,
+  "refresh_token": "8xLOxBtZp8mYQx7CTO3G",
+  "scope": "email.read"
+}
+Access token claims:
+{
+  "iss": "https://as.mailco.example",
+  "sub": "paul@acme.example",
+  "client_id": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "aud": "https://mail.mailco.example/",
+  "scope": "email.read",
+  "exp": 1785272280
+}</pre>
+<p class="commentary">Zero inventions: this is authorization_code plus PKCE plus CIMD, as deployed. The consent screen names the individual agent, which is more honest than consenting to a platform writ large; the grant is revocable at one row; the refresh token keeps access alive across the agent's weeks-long life and dies when the platform stops publishing the agent's key (CIMD s8.4.1 permits token revocation on key change), giving retirement (D10) an enforcement point. Under JIF as drafted this scenario has no wire form: an authorization request requires a client_id and the agent is not one, so 'grant MY email to THAT agent' cannot be expressed, which is the author's own convenience observation turned into a requirement.</p>
+</div>
+<div class="col">
+<h2 class="msubject">agent = grant subject (current draft)</h2>
+<p class="scenario">The author's convenience scenario under agent-as-subject. Paul wants Support Triage Agent 7f3d9a2e, and only that agent, to read his mailbox at mailco. The OAuth client is the per-tenancy platform client (ONE CIMD document per tenancy, warm-cached at every AS -- not one per agent, so the cache actually amortizes). The specific agent is named in the authorization request via RFC 9396 authorization_details; the grant is recorded against (user, tenancy client, agent (iss,sub)); liveness requires a fresh platform-signed agent assertion at every token refresh.</p>
+<pre>Step 1, authorization request (browser):
+GET /authorize?response_type=code
+  &amp;client_id=https%3A%2F%2Facme.agents.platform.example%2F
+  &amp;redirect_uri=https%3A%2F%2Facme.agents.platform.example%2Foauth%2Fcallback
+  &amp;authorization_details=%5B%7B%22type%22%3A%22agent_delegation%22%2C%22agent%22%3A%22wimse%3A%2F%2Facme.agents.platform.example%2Fagent%2F7f3d9a2e%22%2C%22agent_name%22%3A%22Support%20Triage%20Agent%22%2C%22actions%22%3A%5B%22email.read%22%5D%7D%5D
+  &amp;state=af0ifjsldkj
+  &amp;code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &amp;code_challenge_method=S256 HTTP/1.1
+Host: as.mailco.example
+
+authorization_details decoded (RFC 9396):
+[{
+  "type": "agent_delegation",
+  "agent": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+  "agent_name": "Support Triage Agent",
+  "actions": ["email.read"]
+}]
+
+Consent screen (client metadata from the ONE tenancy CIMD document, agent from authorization_details):
+"Support Triage Agent, running in Acme's workspace on Agents Platform, wants to: read your email."
+paul@acme.example approves. AS records grant G: (paul@acme.example, client=https://acme.agents.platform.example/, agent=wimse://acme.agents.platform.example/agent/7f3d9a2e, email.read).
+
+Step 2, code redemption; platform authenticates (RFC 7523 s2.2 private_key_jwt under the tenancy key, published at the jwks_uri the admin already trusts):
+POST /token HTTP/1.1
+Host: as.mailco.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&amp;code=SplxlOBeZQQYbYS6WxSbIA
+&amp;redirect_uri=https%3A%2F%2Facme.agents.platform.example%2Foauth%2Fcallback
+&amp;code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2F
+&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
+
+client_assertion decoded:
+{"alg":"ES256","kid":"tenancy-2026-07"}
+.
+{
+  "iss": "https://acme.agents.platform.example/",
+  "sub": "https://acme.agents.platform.example/",
+  "aud": "https://as.mailco.example",
+  "exp": 1785271980,
+  "jti": "3b1f0a77-52c1-4c4e-8d2a-9e5f6c7d8e9f"
+}
+(signature: tenancy key)
+
+Response: {"access_token":"eyJhbGciOiJFUzI1NiIs...","token_type":"Bearer","expires_in":600,"refresh_token":"8xLOxBtZp8mYQx7CTO3G","scope":"email.read"} -- refresh token bound to grant G, held by the confidential tenancy client (not by an ephemeral per-agent client whose keys need escrow).
+
+Step 3, every subsequent access -- token exchange with the agent in the ACTOR slot (RFC 8693 s2.1; refresh_token is a registered subject_token_type per RFC 8693 s3):
+POST /token HTTP/1.1
+Host: as.mailco.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange
+&amp;subject_token=8xLOxBtZp8mYQx7CTO3G
+&amp;subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Arefresh_token
+&amp;actor_token=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQifQ...
+&amp;actor_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Ajwt
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2F
+&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
+
+actor_token = the agent's ordinary JIF assertion, byte-for-byte the shape from counter-example 1 (iss=tenancy issuer, sub=wimse://.../agent/7f3d9a2e, aud=https://as.mailco.example, fresh exp/iat/jti, Properties).
+
+AS enforcement (the JIF grant-binding rule): actor_token verifies under the allowlisted issuer AND actor_token.sub == grant G's consented agent AND subject_token belongs to G. Any mismatch: invalid_grant.
+
+Issued access token:
+{
+  "iss": "https://as.mailco.example",
+  "sub": "paul@acme.example",
+  "client_id": "https://acme.agents.platform.example/",
+  "aud": "https://mail.mailco.example/",
+  "scope": "email.read",
+  "act": {
+    "iss": "https://acme.agents.platform.example",
+    "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e"
+  },
+  "exp": 1785272280
+}</pre>
+<p class="commentary">Consent names the individual agent (the advocate's 'no wire form at all' is false -- RFC 9396 is the wire form, an RFC deployed in FAPI 2 ecosystems, vs their stack of three pre-RFC drafts). Paul's security page lists ONE app with per-agent grant rows underneath -- structural family grouping, no prefix-parsing of client_id, no thousand-corpse client list. Revocation is one grant row. Retirement beats the advocate's: access dies deterministically at the next exchange when the platform stops signing the agent's assertions (JIF's cessation semantics), versus CIMD s8.4.1's discretionary MAY firing on an eventual metadata re-fetch. The refresh token lives with the durable confidential tenancy client, so no instance-key escrow problem. Honest cost, conceded: the actor_token-matches-consented-agent binding is JIF profile text still to be written, and token exchange with actor_token is not universal in deployed ASes -- but it is registered RFC 8693 grammar, and the advocate's alternative needs ATTEST+CIMD support that is strictly rarer.</p>
+</div>
+</div>
+</div><div class="tabbody" id="tab-obo">
+<div class="cols">
+<div class="col">
+<h2 class="mclient">agent = OAuth client</h2>
+<p class="scenario">Acme runs idp.acme.example. Paul asks the agent to file tickets as him at saas.example. The agent obtains an ID-JAG from the IdP by token exchange, then redeems it at the resource AS. The agent authenticates as itself (Example 1's attestation) at both endpoints; the grant slot carries only statements about Paul.</p>
+<pre>Step 1, token exchange at the enterprise IdP (IDJAG-04 s4.3, RFC 8693):
+POST /token HTTP/1.1
+Host: idp.acme.example
+Content-Type: application/x-www-form-urlencoded
+OAuth-Client-Attestation: &lt;platform-signed attestation, sub = https://acme.agents.platform.example/agents/7f3d9a2e&gt;
+OAuth-Client-Attestation-PoP: &lt;instance-signed, aud = https://idp.acme.example&gt;
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange
+&amp;requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aid-jag
+&amp;subject_token=eyJraWQiOiJpZHAtMjAyNi0wNiIs...   (Paul's ID token, aud = the agent's client_id, per s4.3.3 audience check)
+&amp;subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aid_token
+&amp;audience=https%3A%2F%2Fas.saas.example
+&amp;scope=tickets.write
+
+Returned ID-JAG, decoded (IDJAG s3.1):
+{"typ":"oauth-id-jag+jwt","alg":"ES256","kid":"idp-2026-06"}
+.
+{
+  "iss": "https://idp.acme.example",
+  "sub": "paul@acme.example",
+  "aud": "https://as.saas.example",
+  "client_id": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "scope": "tickets.write",
+  "jti": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d",
+  "iat": 1785271680,
+  "exp": 1785272280
+}
+(signature: enterprise IdP key)
+
+Step 2, redemption at the resource AS (IDJAG s4.4, RFC 7523 s2.1):
+POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+OAuth-Client-Attestation: &lt;same platform-signed attestation&gt;
+OAuth-Client-Attestation-PoP: &lt;fresh instance-signed PoP, aud = https://as.saas.example, new jti&gt;
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;assertion=&lt;ID-JAG from step 1&gt;
+&amp;resource=https%3A%2F%2Fapi.saas.example%2F
+
+AS checks per IDJAG s4.4.1: ID-JAG signature against allowlisted idp.acme.example, and client_id claim equals the attestation-authenticated client. Issued access token:
+{
+  "iss": "https://as.saas.example",
+  "sub": "paul@acme.example",
+  "client_id": "https://acme.agents.platform.example/agents/7f3d9a2e",
+  "aud": "https://api.saas.example/",
+  "scope": "tickets.write",
+  "exp": 1785272280
+}</pre>
+<p class="commentary">Two authorities, two artifacts, two slots: the IdP signs the statement about Paul, the platform signs the statement about the agent, and the AS composes them; neither party testifies outside its competence. The issued token carries who it is about (sub) and who acted (client_id) in fields every RS and SIEM already reads, with no act chain needed for the single-hop case; genuine multi-hop delegation still nests via RFC 8693 s4.1 on top. JIF as drafted cannot run this flow at all: s4.4.1's mandatory client_id match has nothing to match on an unauthenticated request, and the D4 fallback (platform authenticates as THE client) makes the ID-JAG name the platform, erasing the individual agent from the one flow where a human is on the hook. IdP-side client registration is handled by CIMD as a shared global client_id namespace, per IDJAG s5.7 verbatim.</p>
+</div>
+<div class="col">
+<h2 class="msubject">agent = grant subject (current draft)</h2>
+<p class="scenario">Acme runs idp.acme.example and has registered ONE SSO relying party: the platform tenancy app (this is how enterprise SSO actually works -- admins register applications, not hours-old agent instances). Paul asks the agent to file tickets as him at saas.example. The platform obtains an ID-JAG by token exchange, presenting Paul's ID token as subject_token and the agent's JIF assertion as actor_token (RFC 8693 s2.1: 'a security token that represents the identity of the acting party'), then redeems it at the resource AS. Three authorities each sign only what they know: IdP about Paul and the delegation, platform about the agent, tenancy key about the caller.</p>
+<pre>Step 1, token exchange at the enterprise IdP (IDJAG-04 s4.3 over RFC 8693):
+POST /token HTTP/1.1
+Host: idp.acme.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange
+&amp;requested_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aid-jag
+&amp;subject_token=eyJraWQiOiJpZHAtMjAyNi0wNiJ9...
+&amp;subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aid_token
+&amp;actor_token=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQifQ...
+&amp;actor_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Ajwt
+&amp;audience=https%3A%2F%2Fas.saas.example
+&amp;scope=tickets.write
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2F
+&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
+
+subject_token decoded (Paul's ID token -- aud is the SSO app Acme's admin ACTUALLY registered, satisfying IDJAG s4.3.3's audience == authenticated client check with a token an enterprise IdP really issues):
+{
+  "iss": "https://idp.acme.example",
+  "sub": "paul@acme.example",
+  "aud": "https://acme.agents.platform.example/",
+  "exp": 1785272580,
+  "iat": 1785271680
+}
+(signature: enterprise IdP key)
+
+actor_token decoded (the agent's ordinary JIF assertion, unchanged shape, moved to the registered actor slot):
+{
+  "iss": "https://acme.agents.platform.example",
+  "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+  "aud": ["https://idp.acme.example"],
+  "exp": 1785271980,
+  "iat": 1785271680,
+  "jti": "5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9",
+  "name": "Support Triage Agent",
+  "namespace": "acme/support"
+}
+(signature: tenancy issuer key; the IdP trusts this issuer by the same one-row-per-tenancy allowlist JIF already defines)
+
+Returned ID-JAG (IDJAG s3.1 claims; act emitted per RFC 8693 s4.1 semantics native to the exchange that minted it -- actor_token in, act out):
+{"typ":"oauth-id-jag+jwt","alg":"ES256","kid":"idp-2026-06"}
+.
+{
+  "iss": "https://idp.acme.example",
+  "sub": "paul@acme.example",
+  "aud": "https://as.saas.example",
+  "client_id": "https://acme.agents.platform.example/",
+  "scope": "tickets.write",
+  "act": {
+    "iss": "https://acme.agents.platform.example",
+    "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e"
+  },
+  "jti": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d",
+  "iat": 1785271680,
+  "exp": 1785272280
+}
+(signature: enterprise IdP key)
+
+Step 2, redemption at the resource AS (IDJAG s4.4, RFC 7523 s2.1 grant slot):
+POST /token HTTP/1.1
+Host: as.saas.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+&amp;assertion=&lt;ID-JAG from step 1&gt;
+&amp;resource=https%3A%2F%2Fapi.saas.example%2F
+&amp;client_id=https%3A%2F%2Facme.agents.platform.example%2F
+&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
+&amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
+
+AS checks per IDJAG s4.4.1: ID-JAG signature against allowlisted idp.acme.example, and the client_id claim (https://acme.agents.platform.example/) equals the authenticated client. MATCH -- the check the advocate said JIF cannot satisfy is satisfied, with the agent intact in act.
+
+Issued access token:
+{
+  "iss": "https://as.saas.example",
+  "sub": "paul@acme.example",
+  "client_id": "https://acme.agents.platform.example/",
+  "aud": "https://api.saas.example/",
+  "scope": "tickets.write",
+  "act": {
+    "iss": "https://acme.agents.platform.example",
+    "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e"
+  },
+  "exp": 1785272280
+}</pre>
+<p class="commentary">This is the McGuinness ai-agent-instance Appendix B token shape verbatim ('alice@example.com via agent instance sess-9f2c'): user in sub, agent in act.sub, client_id = the application -- each field keeping its RFC-defined meaning, with the audit question answered by the two fields RFC 8693 registered for exactly principal-vs-actor. Contrast the advocate's version, which requires Paul's ID token to carry aud = an hours-old per-agent URL: no enterprise IdP issues that, so their flow needs either per-agent SSO registration (violating JIF's Instantiation MUST NOT, and DCR-at-the-IdP) or blanket origin trust (the same tenancy row JIF already has, gaining nothing). Multi-hop chaining stays clean: agent A handing to agent B nests act per RFC 8693 s4.1, with no bogus first link, because the caller (platform client) was never in the chain. Conceded gap: IDJAG-04 does not yet specify act in the ID-JAG, so this needs a one-line interop note or IDJAG extension -- smaller and better-precedented than the advocate's dependence on unshipped ATTEST transports plus IdPs resolving CIMD client_ids (their own weakest_points #7).</p>
+</div>
+</div>
+</div>
+
+<h1 style="margin-top:28px">what the draft owes regardless of the outcome</h1>
+<ul class="debts"><li>The IDJAG pointer is a live internal inconsistency: the draft's Scope section points on-behalf-of at IDJAG while D4 permits fully unauthenticated token requests, and IDJAG s4.4.1 has nothing to match on an unauthenticated request. The draft owes one normative sentence: in the IDJAG/Enterprise-IdP composition the Platform MUST authenticate as an OAuth client (D4's own reserved composition), and the agent's identity travels as act (via actor_token at the exchange). The advocate correctly caught an unclosed loop the current text leaves dangling.</li><li>Per-agent user consent has no enforcement rule in JIF today. The wire form exists (RFC 9396 authorization_details naming the agent; grant recorded against (user, tenancy client, agent (iss,sub))), but the binding rule — 'this grant is redeemable only alongside a fresh assertion whose sub matches the consented agent' — is unwritten profile text, and no off-the-shelf AS enforces it. Until that rule is drafted, 'grant MY email to THAT agent' is expressible but not enforceable under agent-as-subject, and the author's convenience scenario should be promoted from framing-note to a named Open Issue.</li><li>(iss, sub)-keyed management machinery is new build. Per-agent quotas, kill switches, token listing, and grant dashboards keyed on the agent identifier do not exist in any deployed AS, and the draft currently implies zero cost beyond the token endpoint. Honest text: adopting ASes that want per-agent operational controls build them against (iss, sub); the draft should also add at least a SHOULD for client authentication in production deployments, since an unauthenticated floor leaves the AS with no caller identity to throttle or kill — exactly the case O1's refinement already flags as load-bearing.</li><li>Token-shape ambiguity cuts against JIF too: RS code that assumes sub is always a human will misclassify JIF's self-access tokens (sub = agent identifier). The draft should adopt a disambiguator — a sub_profile-style claim as in McGuinness ai-agent-instance s8, or normative reliance on the URI-form identifier's authority component — rather than leaving RSes to guess. The advocate's two-shapes critique applies to their design AND to the ecosystem-converged sub/act.sub split JIF should adopt for OBO; JIF owes its half of the answer.</li><li>The Relationship-to-WIMSE/SPIFFE section (O3) is still a TODO, and until it exists the draft recommends WIMSE identifiers while declining SPIFFE-style client authentication without stating why. The slot argument (subject-granularity instance identity vs family-granularity client identity) is sound but currently lives in a notes file, not the draft; the advocate is right that a security reviewer will press exactly here.</li><li>The advocate's adoption-floor concession deserves being banked, not gloated over: their weakest_points #1 grants that D3's adoption argument survives ('JIF as drafted is a config change at the token endpoint... this trades away time-to-first-deployment'). The debate is genuinely between shipping into the deployed ecosystem now versus building for a paper end state; the draft should say it is consciously choosing the former and name the migration path (hybrid options) so the choice reads as staged, not blinkered.</li></ul>
+
+<script>
+  document.querySelectorAll('.tabs button[data-tab]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.tabbody').forEach(t => t.classList.remove('show'));
+    document.getElementById('tab-' + b.dataset.tab).classList.add('show');
+  });
+</script>
+</body></html>
