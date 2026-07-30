@@ -83,7 +83,10 @@ resource server.  Trust is established once, by reference to the
 issuer's published metadata and keys; agent creation requires no per-agent
 step at the resource server; and authorization is expressed over
 platform-asserted agent properties that resource servers map locally to
-permissions.
+permissions.  This profile addresses agents acting on their own behalf;
+access on behalf of a user or other principal is out of scope, though the
+design is intended to compose with existing delegation mechanisms in which
+the agent appears as the actor.
 
 --- to_be_removed_note_Note_to_Readers
 
@@ -159,8 +162,12 @@ standalone OAuth issuer.
 ## Scope
 
 In scope: agents acting on their own behalf ({{AIMS}}, Section 10.4.2).  Out
-of scope: on-behalf-of access (see {{IDJAG}}), legacy integration via static
-credentials, runtime attestation, agent-to-agent protocols.
+of scope: on-behalf-of access, legacy integration via static credentials,
+runtime attestation, agent-to-agent protocols.  This profile deliberately
+does not specify on-behalf-of flows; the design is intended to compose with
+delegation mechanisms in which the agent appears as the actor rather than
+the subject (e.g., the act claim and actor_token parameter of {{RFC8693}},
+or {{IDJAG}}), and that composition is left to future documents.
 
 # Conventions and Terminology
 

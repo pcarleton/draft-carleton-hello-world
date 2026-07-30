@@ -5,6 +5,18 @@ Most recent first within each state. Open items are at the bottom.
 
 ## Decided
 
+### D11 — OBO is out of scope: gesture at actor-claim compatibility, specify nothing (2026-07-30)
+The abstract and Scope now state that the profile covers agents acting on
+their own behalf only. On-behalf-of flows are not specified here; the text
+gestures at compatibility (the agent as actor rather than subject, via RFC
+8693 act/actor_token or IDJAG) and leaves the composition to future
+documents. This narrows the O4 debate's owed-regardless item about the
+IDJAG pointer: the answer in THIS document is scoping, not normative
+composition text. Alternatives: specify the IDJAG composition normatively
+(rejected: expands the document beyond its exploratory purpose); say
+nothing about OBO at all (rejected: reviewers would assume the design
+forecloses it).
+
 ### D10 — Retirement: state the bound, defer the signal (2026-07-28)
 Retirement is cessation of signing; the draft states the residual-access
 bound (remaining assertion lifetime + access-token lifetime) normatively and
