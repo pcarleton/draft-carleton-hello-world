@@ -1,5 +1,5 @@
 ---
-title: "Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent Platforms"
+title: "Just-in-Time Identity Federation (JIF) for Agent Platforms"
 abbrev: "JIF for Agent Platforms"
 category: info
 

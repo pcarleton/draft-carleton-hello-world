@@ -1,8 +1,8 @@
 <!-- regenerate: off -->
 
-# Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent Platforms
+# Just-in-Time Identity Federation (JIF) for Agent Platforms
 
-This is the working area for the individual Internet-Draft, "Just-in-Time Identity Federation (JIF): An AIMS Profile for Agent Platforms".
+This is the working area for the individual Internet-Draft, "Just-in-Time Identity Federation (JIF) for Agent Platforms".
 
 * [Editor's Copy](https://pcarleton.github.io/draft-carleton-jif/#go.draft-carleton-jif.html)
 * [Datatracker Page](https://datatracker.ietf.org/doc/draft-carleton-jif)
