@@ -15,7 +15,16 @@ tie the mechanism to agents (agent platforms are the motivating deployment,
 not the scope). Brian Campbell concurred; Aaron Parecki adopted it and
 contributed the JWT claims subsection. Alternatives (re-)considered: WIF
 (most recognizable, but claims a term with variable wire semantics); A-WIF /
-WIFA (agent-tied); WAG (superseded per above).
+WIFA (agent-tied); JIF (superseded per above).
+
+Docname `draft-carleton-workload-authz-grant`: bare-acronym docnames are
+non-idiomatic for individual drafts (a datatracker sample found only DPoP
+and RAR; ID-JAG's own slug spells it out as identity-assertion-authz-grant).
+No WG segment in the slug and no `venue: group/type/mail` block: the
+mechanism straddles OAuth (7523 grant mechanics) and WIMSE (workload
+identity, trust domains), so naming a home before list discussion presumes
+the answer. May add back after wimse@ and oauth@ feedback. "WAG" stays the
+spoken/abbrev name.
 
 ### D11 — OBO is out of scope: gesture at actor-claim compatibility, specify nothing (2026-07-30)
 The abstract and Scope now state that the profile covers agents acting on

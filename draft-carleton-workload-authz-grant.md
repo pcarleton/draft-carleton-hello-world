@@ -15,9 +15,6 @@ keyword:
  - workload identity
  - workload authorization grant
 venue:
-  group: WIMSE
-  type: Working Group
-  mail: wimse@ietf.org
   github: pcarleton/draft-carleton-workload-authz-grant
 
 author:
