@@ -1,0 +1,655 @@
+
+
+
+
+Network Working Group                                        P. Carleton
+Internet-Draft                                                 Anthropic
+Intended status: Informational                             3 August 2026
+Expires: 4 February 2027
+
+
+                      Workload Authorization Grant
+               draft-carleton-workload-authz-grant-latest
+
+Abstract
+
+   This document profiles the Agent Identity Management System (AIMS)
+   framework for agent platforms that host many agent instances per
+   customer.  Each agent is identified by an opaque, non-reassignable
+   agent identifier; the agent obtains access tokens by presenting a JWT
+   authorization grant (RFC 7523), signed by the platform's per-tenancy
+   issuer, in the assertion parameter at the authorization server
+   protecting the resource server.  Trust is established once, by
+   reference to the issuer's published metadata and keys; agent creation
+   requires no per-agent step at the authorization server or resource
+   server; and authorization is expressed over platform-asserted agent
+   properties that resource servers map locally to permissions.  This
+   profile addresses agents acting on their own behalf; access on behalf
+   of a user or other principal is out of scope, though the design is
+   intended to compose with existing delegation mechanisms in which the
+   agent appears as the actor.
+
+About This Document
+
+   This note is to be removed before publishing as an RFC.
+
+   Status information for this document may be found at
+   https://datatracker.ietf.org/doc/draft-carleton-workload-authz-
+   grant/.
+
+   Source for this draft and an issue tracker can be found at
+   https://github.com/pcarleton/draft-carleton-workload-authz-grant.
+
+Note to Readers
+
+   This note is to be removed before publishing as an RFC.
+
+   This document is an early, exploratory individual draft, published to
+   solicit discussion of the deployment pattern it describes.  It is not
+   a working group document, does not describe a shipped or committed
+   design, and does not represent a position or roadmap of the author's
+   employer.  Every aspect of it is subject to change or withdrawal,
+   including whether this profile should exist as a separate document at
+   all.  Most sections are placeholders.  Issues and pull requests:
+   https://github.com/pcarleton/draft-carleton-workload-authz-grant.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 4 February 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction
+     1.1.  Relationship to AIMS
+     1.2.  Relationship to WIMSE and SPIFFE
+     1.3.  Scope
+   2.  Conventions and Terminology
+   3.  Deployment Model
+   4.  Agent Identity Model
+   5.  Authorization Grant
+     5.1.  JWT Authorization Grant Claims
+   6.  Trust Establishment
+   7.  Agent Instantiation
+   8.  Agent Properties and Authorization
+   9.  Attribution
+   10. Retirement and Lifecycle
+   11. Open Issues
+   12. Security Considerations
+   13. IANA Considerations
+   14. References
+     14.1.  Normative References
+     14.2.  Informative References
+   Acknowledgments
+   Author's Address
+
+1.  Introduction
+
+   Agent platforms increasingly host many agent instances per customer,
+   created and retired at the cadence at which the customer organizes
+   its work -- per channel, repository, or pipeline.  An individual
+   agent may persist for weeks or months, but the person creating it is
+   typically not the person authorized to provision credentials at the
+   resource servers it will access.  Per-agent credentials are therefore
+   not issued in practice, and deployments collapse to a single
+   credential shared across all agents of an installation -- the pattern
+   [AIMS], Section 7, identifies as an antipattern -- at the cost of any
+   attribution of an individual agent's actions at the resource server.
+
+   Existing workload identity federation [WIMSE-ARCH] addresses an
+   analogous problem between an organization's workloads and
+   infrastructure providers, but its claim and policy semantics are
+   defined per provider rather than portably, and it has not been
+   applied between agent platforms and SaaS resource servers.  The Model
+   Context Protocol's proposed Workload Identity Federation extension
+   [MCP-WIF] defines the corresponding wire mechanics for MCP servers;
+   this profile is intended to be interoperable with it.
+
+   This document specifies a profile of [AIMS] for that deployment
+   pattern.  Agent platforms are the motivating deployment, and the
+   terminology throughout uses "Agent"; the mechanism itself is not
+   agent-specific and applies to any platform hosting workloads that
+   need federated access to third-party resource servers.  The mechanism
+   is called the Workload Authorization Grant (WAG): a platform-signed
+   JWT authorization grant asserting a workload's identity and platform-
+   asserted properties.  Trust in the platform's issuer is established
+   once, by reference, and thereafter agents are accepted on first
+   presentation with no per-agent registration step.
+
+   A design goal of this profile is a minimal adoption path for services
+   that already operate an OAuth deployment: supporting it requires
+   changes only at the authorization server's token endpoint, which
+   accepts the JWT authorization grant from allowlisted issuers.  The
+   access tokens the authorization server issues are unchanged in format
+   and semantics, and resource servers continue to trust their
+   authorization server exactly as they do today.
+
+1.1.  Relationship to AIMS
+
+   [AIMS] remains the base specification for anything not restated here.
+   This profile constrains [AIMS] as follows:
+
+   +================+=========+=======================================+
+   | AIMS component | Here    | Relationship                          |
+   +================+=========+=======================================+
+   | Identifiers    | Section | Constrained: opaque, immutable, non-  |
+   | (Sec. 6)       | 4       | reassignable agent identifier,        |
+   |                |         | RECOMMENDED to be a Workload          |
+   |                |         | Identifier [WIMSE-ID], carried as sub |
+   +----------------+---------+---------------------------------------+
+   | Credentials    | Section | Constrained: [RFC7523] JWT            |
+   | (Sec. 7),      | 5       | authorization grant (assertion),      |
+   | Authentication |         | platform-signed; no per-agent         |
+   | (Sec. 9)       |         | credential; client identity           |
+   |                |         | deliberately unspecified              |
+   +----------------+---------+---------------------------------------+
+   | Credential     | Section | Constrained: platform-internal        |
+   | Provisioning   | 7       |                                       |
+   | (Sec. 8)       |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Authorization  | Section | Added: standard property claims; by-  |
+   | (Sec. 10, case | 8       | reference trust (Section 6)           |
+   | 10.4.2)        |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Monitoring/    | Section | TODO                                  |
+   | Remediation    | 11      |                                       |
+   | (Sec. 11)      |         |                                       |
+   +----------------+---------+---------------------------------------+
+   | Policy (Sec.   | --      | Inherited                             |
+   | 12),           |         |                                       |
+   | Compliance     |         |                                       |
+   | (Sec. 13)      |         |                                       |
+   +----------------+---------+---------------------------------------+
+
+                                 Table 1
+
+1.2.  Relationship to WIMSE and SPIFFE
+
+   TODO.  A reader arriving from WIMSE or SPIFFE will ask where the
+   Workload Identity Token and the SPIFFE ID are in this design.
+   Explain: why the assertion is an [RFC7523] authorization grant rather
+   than a WIMSE WIT; how the Agent Identifier's RECOMMENDED [WIMSE-ID]
+   URI form relates to a SPIFFE ID; and what changes if the Platform's
+   issuer is backed by a SPIFFE/WIMSE-style workload identity plane
+   rather than operated as a standalone OAuth issuer.
+
+1.3.  Scope
+
+   In scope: agents acting on their own behalf ([AIMS], Section 10.4.2).
+   Out of scope: on-behalf-of access, legacy integration via static
+   credentials, runtime attestation, agent-to-agent protocols.  This
+   profile deliberately does not specify on-behalf-of flows; the design
+   is intended to compose with delegation mechanisms in which the agent
+   appears as the actor rather than the subject (e.g., the act claim and
+   actor_token parameter of [RFC8693], or [IDJAG]), and that composition
+   is left to future documents.
+
+2.  Conventions and Terminology
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   Agent Platform ("Platform"):  The service that hosts Agents and
+      operates the per-tenancy issuers that vouch for them.
+
+   Agent:  A hosted workload with its own Agent Identifier, context, and
+      configuration.
+
+   Agent Property:  A Platform-asserted attribute carried as a claim in
+      the authorization grant.
+
+   Authorization Server (AS):  The OAuth authorization server at which
+      Agents present authorization grants and obtain access tokens;
+      commonly, but not necessarily, operated by the same vendor as the
+      Resource Server it protects.
+
+   Resource Server (RS):  The service holding customer resources,
+      accessed with the access tokens the Authorization Server issues.
+
+   Enterprise IdP:  The customer's identity provider (optional).
+
+   Customer Administrator:  The human who performs one-time trust
+      establishment.
+
+3.  Deployment Model
+
+   TODO: diagram.  One-time trust establishment by the Customer
+   Administrator (Section 6); agent creation by end users with no
+   interaction with the Resource Server (Section 7); per-request JWT
+   authorization grant (Section 5).
+
+4.  Agent Identity Model
+
+   An Agent's identity has three units: the tenancy's issuer, which
+   signs assertions about the Agent; the Agent Identifier, opaque,
+   unique within the issuer, immutable, and never reassigned, carried as
+   the assertion's sub (Section 5); and claims, carrying everything else
+   (Section 8).  Renaming an Agent MUST NOT change its Agent Identifier.
+   Resource Servers MUST NOT parse or pattern-match the Agent Identifier
+   for authorization; single-agent policy is an exact match on it.
+
+   The Agent Identifier MAY be, and is RECOMMENDED to be, a Workload
+   Identifier URI [WIMSE-ID] with an opaque path; a bare opaque string
+   is also permitted.  URI form costs no opacity -- the path remains
+   meaningful only to the issuing Platform -- and carries the trust
+   boundary inside the identifier's authority component, which is what
+   relying parties that evaluate only subject and audience need
+   (Section 11).  When the Agent Identifier is a URI, the Authorization
+   Server validates its authority component against the allowlisted
+   issuer's tenancy once, at token issuance; Resource Servers treat the
+   complete identifier as an opaque, exact-match string regardless of
+   form and MUST NOT derive trust from its components.
+
+5.  Authorization Grant
+
+   The Agent obtains access tokens from the Authorization Server by
+   presenting a JWT as an authorization grant per [RFC7523],
+   Section 2.1, issued by the Platform as a third party in the sense of
+   [RFC7521], Section 3.  The token request carries
+   grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in
+   the assertion parameter, and the target resource in the resource
+   parameter [RFC8707].  This profile deliberately does not specify the
+   OAuth client identity or attach semantics to client_id.  In the
+   simplest deployment the token request is made without client
+   authentication.  Deployments MAY layer client authentication on top
+   -- for example, the Platform authenticating as an OAuth client in its
+   own right with a Client ID Metadata Document [CIMD] and a
+   private_key_jwt client assertion -- a composition that becomes
+   natural when the authorization grant's issuer is the customer's
+   Enterprise IdP rather than the Platform (obtained, e.g., by token
+   exchange [RFC8693] with the IdP).  This document intentionally leaves
+   that composition open rather than fully specifying it (Section 11).
+
+5.1.  JWT Authorization Grant Claims
+
+   The following claims are used within the Workload Authorization Grant
+   JWT:
+
+   iss:  REQUIRED - The issuer identifier of the Platform's per-tenancy
+      issuer (Section 6).
+
+   sub:  REQUIRED - The Agent Identifier as defined in Section 4.
+
+   aud:  REQUIRED.  The value SHOULD include both the Authorization
+      Server's issuer identifier and its token endpoint URL; an
+      Authorization Server supporting this profile MUST accept an
+      assertion whose aud includes either value ([RFC7523] itself leaves
+      the audience strings to out-of-band configuration).  [RFC7523BIS]
+      adds the issuer identifier as an audience option for authorization
+      grants (while restricting client-authentication assertions, a
+      different slot, to it alone); carrying both values keeps an
+      assertion valid across deployed and future processing.
+
+   jti:  REQUIRED - Unique ID of this JWT as defined in Section 4.1.7 of
+      [RFC7519].
+
+   exp:  REQUIRED - as defined in Section 4.1.4 of [RFC7519].
+
+   iat:  REQUIRED - as defined in Section 4.1.6 of [RFC7519].
+
+   The assertion is signed under a key in the issuer's published JWK Set
+   [RFC7517].  The Authorization Server MUST resolve the signing key by
+   iss (Section 6), not via a client registration.  The assertion
+   carries the Agent's Properties (Section 8), and the Authorization
+   Server MUST make them available to the Resource Server's
+   authorization decision.
+
+   Authorization Servers supporting this profile MUST include
+   urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
+   in their metadata [RFC8414].
+
+   Figure 1 shows an example token request (with extra line breaks for
+   display purposes only):
+
+   POST /token HTTP/1.1
+   Host: as.saas.example
+   Content-Type: application/x-www-form-urlencoded
+
+   grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
+   &assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjYtMDctMTQi...
+   &resource=https%3A%2F%2Fapi.saas.example%2F
+
+                      Figure 1: Example token request
+
+   Figure 2 shows the decoded claims of the assertion carried in that
+   request; name, namespace, groups, roles, and ctx are Agent Properties
+   (Section 8):
+
+   {
+     "iss": "https://acme.agents.platform.example",
+     "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
+     "aud": ["https://as.saas.example",
+             "https://as.saas.example/token"],
+     "exp": 1785271980,
+     "iat": 1785271680,
+     "jti": "7d0f5a2b-93c8-4f0e-9c33-1b6a0e6d5f10",
+     "name": "Support Triage Agent",
+     "namespace": "acme/support",
+     "groups": ["support-eng"],
+     "roles": ["responder"],
+     "ctx": "channel:C0123456789"
+   }
+
+                     Figure 2: Example assertion claims
+
+   The Authorization Server MUST NOT issue refresh tokens, as access
+   tokens are short-lived and audience-restricted [RFC8707].  Assertion
+   lifetimes SHOULD be as short as system availability constraints
+   allow.
+
+   TODO: proof-of-possession -- the assertion is a bearer grant; options
+   are sender-constrained access tokens, or attestation-based client
+   authentication [ATTEST-CLIENT-AUTH] (Platform as client attester,
+   agent instance signs the PoP JWT) if agent instances hold keys.
+
+6.  Trust Establishment
+
+   The Customer Administrator once records, at the Authorization Server,
+   an allowlist entry binding one issuer to one tenancy: the issuer
+   identifier, from which the issuer's metadata and JWK Set location are
+   discovered per [OIDC-DISCOVERY] (retrieved over https [RFC9525]), and
+   the tenancy's initial Property-to-permission mapping for the Resource
+   Server (Section 8).  Establishment is by reference; no keys or
+   secrets are transferred, and key rotation is by JWK Set update alone.
+   Platforms serving multiple customers MUST use a distinct issuer per
+   tenancy: the issuer is the trust boundary the allowlist expresses,
+   and a shared issuer would move tenancy enforcement into claim
+   evaluation at every Authorization Server -- including relying parties
+   that can evaluate only subject and audience (Section 11).  The
+   proposed MCP Workload Identity Federation extension [MCP-WIF]
+   recommends (SHOULD) that authorization servers rely only on issuing
+   keys bound to a single tenant; this profile deliberately tightens
+   that boundary to a per-tenancy issuer MUST.
+
+   Multi-issuer operation is scoped by issuer throughout.  An
+   Authorization Server MUST resolve and cache keys per allowlist entry
+   and MUST NOT merge key sets across issuers, and it MUST interpret sub
+   and jti only within the scope of the presenting iss.  A Resource
+   Server that keeps a Property-to-permission mapping (Section 8)
+   likewise scopes it by iss.  An Agent Identifier is unique within its
+   issuer, not globally: policy and audit records are keyed on the (iss,
+   sub) pair, or on the complete URI-form identifier, which carries the
+   tenancy in its authority component.
+
+7.  Agent Instantiation
+
+   Creating an Agent is Platform-internal and MUST NOT require any
+   ahead-of-time interaction with the Resource Server, the Authorization
+   Server, an Enterprise IdP, or the Customer Administrator.  The
+   Authorization Server first learns that an Agent exists when the Agent
+   presents its first authorization grant: it MUST accept a previously-
+   unseen Agent Identifier presented as sub under an allowlisted issuer,
+   and authorization -- at the Authorization Server and the Resource
+   Server alike -- is via Section 8, never identifier structure.  Agents
+   are not dynamically registered clients [RFC7591].
+
+   Optionally, a Platform MAY project Agents into an Enterprise IdP
+   (e.g., as [SCIM-AGENT] resources) for inventory and lifecycle
+   governance.  Such projection MUST NOT be required ahead of time:
+   performing it just in time, including synchronously during first
+   token issuance, is acceptable.  TODO: BYO-IdP deployment model.
+
+8.  Agent Properties and Authorization
+
+   TODO.  Initial standard property claims: name, a human-readable
+   display name as in an OpenID Connect ID Token [OIDC-CORE] (mutable,
+   and never a key for authorization or attribution -- that is the Agent
+   Identifier); namespace, groups, roles, and an optional ctx naming the
+   collaboration context; additional attributes use collision-resistant
+   claim names per [RFC7519], Section 4.3.  TODO: whether an Agent needs
+   a human-usable, "@"-referenceable address within the Platform,
+   analogous to sharing a document with an email address, distinct from
+   both name and the opaque Agent Identifier; noted here, deliberately
+   unsolved.  A Resource Server keeps a local, administrator-controlled
+   mapping from Property predicates to permissions; possession of a
+   Property is not itself authorization.  Deny semantics do not travel.
+   TODO: worked example.
+
+9.  Attribution
+
+   TODO.  The Authorization Server logs jti at token issuance; Resource
+   Servers log the Agent Identifier (sub) and referenced Properties;
+   internal fan-out via [TXN-TOKENS] rather than forwarding the access
+   token.
+
+10.  Retirement and Lifecycle
+
+   Retirement is expressed by cessation: the Platform stops signing
+   assertions for a retired Agent, so residual access is bounded by the
+   remaining lifetime of any outstanding assertion plus the lifetime of
+   any access token already issued.  Assertion and access-token
+   lifetimes SHOULD be chosen with this bound in mind.  No signal yet
+   informs an Authorization Server that an Agent Identifier is
+   permanently retired; that gap is shared with neighboring workload
+   identity ecosystems, whose common baseline is likewise short
+   credential lifetimes plus ceasing issuance (Section 11).
+
+   Broader lifecycle management is out of scope for this document.  In
+   particular, resources that come to be owned by an Agent (documents,
+   records, long-lived artifacts) need succession planning when the
+   Agent is retired; this profile makes the retirement event's access
+   consequences legible, but does not manage its downstream effects.
+
+11.  Open Issues
+
+   *  Relying parties that authorize only on subject and audience (e.g.,
+      cloud IAM federation trust policies) and cannot evaluate Property
+      predicates; URI-form Agent Identifiers (Section 4) carry the
+      tenancy inside the identifier for this case, but the residual gap
+      is unassessed.
+
+   *  Proof-of-possession: the authorization grant is bearer; see
+      Section 5.
+
+   *  Issuer placement: issuer operated by the Platform versus by the
+      Enterprise IdP, with the Platform obtaining assertions by token
+      exchange [RFC8693] with the IdP; client authentication is
+      redundant in the former case and load-bearing in the latter; what,
+      if anything, client_id means in each case.
+
+   *  Staleness and retirement signaling in place of per-agent
+      revocation (issuer- or Property-scoped epoch versus event push
+      versus lifetime alone, Section 10); a gap shared with neighboring
+      workload identity ecosystems.
+
+   *  Addressing: whether an Agent needs a human-usable,
+      "@"-referenceable address (to share a resource with an agent the
+      way one shares with an email address), distinct from the display
+      name and the Agent Identifier.
+
+12.  Security Considerations
+
+   TODO: unseen agent identifiers under trusted issuers; issuer
+   allowlist as the trust boundary; tenant confusion at multi-issuer
+   Authorization Servers (Section 6); bearer-assertion theft and
+   assertion lifetime; Platform as root of trust; credential non-
+   exposure to the model; automated trust establishment.
+
+13.  IANA Considerations
+
+   This document has no IANA actions at this time; provisional claim
+   names (Section 8) may be registered in a future revision.
+
+14.  References
+
+14.1.  Normative References
+
+   [AIMS]     Kasselman, P., Lombardo, J., Rosomakho, Y., Campbell, B.,
+              Steele, N., and A. Parecki, "AI Agent Authentication and
+              Authorization", Work in Progress, Internet-Draft, draft-
+              klrc-aiagent-auth-03, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-klrc-aiagent-
+              auth-03>.
+
+   [OIDC-DISCOVERY]
+              Sakimura, N., Bradley, J., Jones, M., and E. Jay, "OpenID
+              Connect Discovery 1.0 incorporating errata set 2",
+              December 2023, <https://openid.net/specs/openid-connect-
+              discovery-1_0.html>.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/rfc/rfc2119>.
+
+   [RFC7517]  Jones, M., "JSON Web Key (JWK)", RFC 7517,
+              DOI 10.17487/RFC7517, May 2015,
+              <https://www.rfc-editor.org/rfc/rfc7517>.
+
+   [RFC7519]  Jones, M., Bradley, J., and N. Sakimura, "JSON Web Token
+              (JWT)", RFC 7519, DOI 10.17487/RFC7519, May 2015,
+              <https://www.rfc-editor.org/rfc/rfc7519>.
+
+   [RFC7521]  Campbell, B., Mortimore, C., Jones, M., and Y. Goland,
+              "Assertion Framework for OAuth 2.0 Client Authentication
+              and Authorization Grants", RFC 7521, DOI 10.17487/RFC7521,
+              May 2015, <https://www.rfc-editor.org/rfc/rfc7521>.
+
+   [RFC7523]  Jones, M., Campbell, B., and C. Mortimore, "JSON Web Token
+              (JWT) Profile for OAuth 2.0 Client Authentication and
+              Authorization Grants", RFC 7523, DOI 10.17487/RFC7523, May
+              2015, <https://www.rfc-editor.org/rfc/rfc7523>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+   [RFC8414]  Jones, M., Sakimura, N., and J. Bradley, "OAuth 2.0
+              Authorization Server Metadata", RFC 8414,
+              DOI 10.17487/RFC8414, June 2018,
+              <https://www.rfc-editor.org/rfc/rfc8414>.
+
+   [RFC8707]  Campbell, B., Bradley, J., and H. Tschofenig, "Resource
+              Indicators for OAuth 2.0", RFC 8707, DOI 10.17487/RFC8707,
+              February 2020, <https://www.rfc-editor.org/rfc/rfc8707>.
+
+   [RFC9525]  Saint-Andre, P. and R. Salz, "Service Identity in TLS",
+              RFC 9525, DOI 10.17487/RFC9525, November 2023,
+              <https://www.rfc-editor.org/rfc/rfc9525>.
+
+   [WIMSE-ID] Rosomakho, Y. and J. A. Salowey, "Workload Identifier",
+              Work in Progress, Internet-Draft, draft-ietf-wimse-
+              identifier-03, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-wimse-
+              identifier-03>.
+
+14.2.  Informative References
+
+   [ATTEST-CLIENT-AUTH]
+              Looker, T., Bastian, P., and C. Bormann, "OAuth 2.0
+              Attestation-Based Client Authentication", Work in
+              Progress, Internet-Draft, draft-ietf-oauth-attestation-
+              based-client-auth-10, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              attestation-based-client-auth-10>.
+
+   [CIMD]     Parecki, A. and E. Smith, "OAuth Client ID Metadata
+              Document", Work in Progress, Internet-Draft, draft-ietf-
+              oauth-client-id-metadata-document-02, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              client-id-metadata-document-02>.
+
+   [IDJAG]    Parecki, A., McGuinness, K., and B. Campbell, "Identity
+              Assertion JWT Authorization Grant", Work in Progress,
+              Internet-Draft, draft-ietf-oauth-identity-assertion-authz-
+              grant-04, 21 May 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              identity-assertion-authz-grant-04>.
+
+   [MCP-WIF]  Model Context Protocol Community, "Workload Identity
+              Federation (proposed Model Context Protocol ext-auth
+              extension, pull request 10)", n.d.,
+              <https://github.com/modelcontextprotocol/ext-auth/
+              pull/10>.
+
+   [OIDC-CORE]
+              Sakimura, N., Bradley, J., Jones, M., de Medeiros, B., and
+              C. Mortimore, "OpenID Connect Core 1.0 incorporating
+              errata set 2", December 2023,
+              <https://openid.net/specs/openid-connect-core-1_0.html>.
+
+   [RFC7523BIS]
+              Jones, M. B., Campbell, B., Mortimore, C., and F. Skokan,
+              "Updates to OAuth 2.0 JSON Web Token (JWT) Client
+              Authentication and Assertion-Based Authorization Grants",
+              Work in Progress, Internet-Draft, draft-ietf-oauth-
+              rfc7523bis-11, 28 April 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              rfc7523bis-11>.
+
+   [RFC7591]  Richer, J., Ed., Jones, M., Bradley, J., Machulak, M., and
+              P. Hunt, "OAuth 2.0 Dynamic Client Registration Protocol",
+              RFC 7591, DOI 10.17487/RFC7591, July 2015,
+              <https://www.rfc-editor.org/rfc/rfc7591>.
+
+   [RFC8693]  Jones, M., Nadalin, A., Campbell, B., Ed., Bradley, J.,
+              and C. Mortimore, "OAuth 2.0 Token Exchange", RFC 8693,
+              DOI 10.17487/RFC8693, January 2020,
+              <https://www.rfc-editor.org/rfc/rfc8693>.
+
+   [SCIM-AGENT]
+              Wahl, M., Zollner, D., Dingle, P., and I. Kazzouzi, "AI
+              Agent Resource Extension for the System for Cross-domain
+              Identity Management (SCIM)", Work in Progress, Internet-
+              Draft, draft-wzdk-scim-agent-resource-00, 5 June 2026,
+              <https://datatracker.ietf.org/doc/html/draft-wzdk-scim-
+              agent-resource-00>.
+
+   [TXN-TOKENS]
+              Tulshibagwale, A., Fletcher, G., and P. Kasselman,
+              "Transaction Tokens", Work in Progress, Internet-Draft,
+              draft-ietf-oauth-transaction-tokens-11, 30 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-oauth-
+              transaction-tokens-11>.
+
+   [WIMSE-ARCH]
+              Salowey, J. A., Rosomakho, Y., and H. Tschofenig,
+              "Workload Identity in a Multi System Environment (WIMSE)
+              Architecture", Work in Progress, Internet-Draft, draft-
+              ietf-wimse-arch-08, 6 July 2026,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-wimse-
+              arch-08>.
+
+Acknowledgments
+
+   The author thanks Kevin Kelley, Aaron Parecki, Brian Campbell, Pieter
+   Kasselman, Nick Steele, Emily Lauber, and Maxwell Gerber for
+   discussions that shaped this document.  This profile builds directly
+   on the Agent Identity Management System framework [AIMS] and would
+   not exist without it.  Further acknowledgments will be added in a
+   future revision.
+
+Author's Address
+
+   Paul Carleton
+   Anthropic
+   Email: paulc@anthropic.com
