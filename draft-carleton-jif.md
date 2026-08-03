@@ -1,9 +1,9 @@
 ---
-title: "Just-in-Time Identity Federation (JIF) for Agent Platforms"
-abbrev: "JIF for Agent Platforms"
+title: "Workload Authorization Grant for Agent Platforms"
+abbrev: "WAG"
 category: info
 
-docname: draft-carleton-jif-latest
+docname: draft-carleton-wag-latest
 submissiontype: IETF
 number:
 date:
@@ -122,7 +122,7 @@ extension {{MCP-WIF}} defines the corresponding wire mechanics for MCP servers; 
 profile is intended to be interoperable with it.
 
 This document specifies a profile of {{AIMS}} for that deployment pattern.
-The resulting mechanism is called just-in-time identity federation (JIF):
+The resulting mechanism is called Workload Authorization Grant (WAG):
 trust in an issuer is established once, by reference, and individual agents
 are provisioned at the resource server just in time, on first presentation,
 with no per-agent registration step.
@@ -217,15 +217,15 @@ issuer, immutable, and never reassigned, carried as the assertion's sub
 Resource Servers MUST NOT parse or pattern-match the Agent Identifier for
 authorization; single-agent policy is an exact match on it.
 
-The Agent Identifier MAY be, and is RECOMMENDED to be, a URI-form Workload
-Identifier {{WIMSE-ID}} with an opaque path; a bare opaque string is also
+The Agent Identifier MAY be, and is RECOMMENDED to be, a Workload
+Identifier URI {{WIMSE-ID}} with an opaque path; a bare opaque string is also
 permitted.  URI form costs no opacity -- the path remains meaningful only to
 the issuing Platform -- and carries the trust boundary inside the
 identifier's authority component, which is what relying parties that
 evaluate only subject and audience need ({{oi}}).  When the Agent Identifier
 is a URI, the Authorization Server validates its authority component against
 the allowlisted issuer's tenancy once, at token issuance; Resource Servers
-treat the complete identifier as an opaque, exact-match key regardless of
+treat the complete identifier as an opaque, exact-match string regardless of
 form and MUST NOT derive trust from its components.
 
 # Authorization Grant {#authorization-grant}
@@ -234,35 +234,57 @@ The Agent obtains access tokens from the Authorization Server by
 presenting a JWT as an authorization grant per {{RFC7523}},
 Section 2.1, issued by the Platform as a third party in the sense of
 {{RFC7521}}, Section 3.  The token request carries
-grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer, the JWT in the
+`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`, the JWT in the
 assertion parameter, and the target resource in the resource parameter
 {{RFC8707}}.  This profile deliberately does not specify the OAuth client
-identity or attach semantics to client_id.  In the simplest deployment the
+identity or attach semantics to `client_id`.  In the simplest deployment the
 token request is made without client authentication.  Deployments MAY layer
 client authentication on top -- for example, the Platform authenticating as
 an OAuth client in its own right with a Client ID Metadata Document {{CIMD}}
-and a private_key_jwt client assertion -- a composition that becomes natural
+and a `private_key_jwt` client assertion -- a composition that becomes natural
 when the authorization grant's issuer is the customer's Enterprise IdP
 rather than the Platform (obtained, e.g., by token exchange {{RFC8693}} with
 the IdP).  This document intentionally leaves that composition open rather
 than fully specifying it ({{oi}}).
 
-In the assertion, iss is the tenancy's issuer identifier and sub is the
-Agent Identifier.  The aud SHOULD contain both the Authorization Server's
-issuer identifier and its token endpoint URL, and an Authorization Server
-supporting this profile MUST accept an assertion whose aud includes either
-value ({{RFC7523}} itself leaves the audience strings to out-of-band
-configuration).  {{RFC7523BIS}} adds the issuer identifier as an audience
-option for authorization grants (while restricting client-authentication
-assertions, a different slot, to it alone); carrying both values keeps an
-assertion valid across deployed and future processing.  exp, iat, and a
-unique jti are REQUIRED.  The assertion is signed under a key in
+## JWT Authorization Grant Claims {#authorization-grant-claims}
+
+The following claims are used within the Workload Authorization Grant JWT:
+
+`iss`:
+: REQUIRED - The issuer identifier ({{RFC8414}} of the Agent Platform.
+
+`sub`:
+: REQUIRED - The Agent Identifier as defined in {{identity-model}}.
+
+`aud`:
+: REQUIRED - Both the Authorization Server's
+  issuer identifier and its token endpoint URL. An Authorization Server
+  supporting this profile MUST accept an assertion whose `aud` includes either
+  value ({{RFC7523}} itself leaves the audience strings to out-of-band
+  configuration).  {{RFC7523BIS}} adds the issuer identifier as an audience
+  option for authorization grants (while restricting client-authentication
+  assertions, a different slot, to it alone); carrying both values keeps an
+  assertion valid across deployed and future processing.
+  
+`jti`:
+: REQUIRED - Unique ID of this JWT as defined in {{Section 4.1.7 of RFC7519}}.
+
+`exp`:
+: REQUIRED - as defined in {{Section 4.1.4 of RFC7519}}.
+
+`iat`:
+: REQUIRED - as defined in {{Section 4.1.6 of RFC7519}}.
+
+The assertion is signed under a key in
 the issuer's published JWK Set {{RFC7517}}.  The Authorization Server MUST
 resolve the signing key by iss ({{trust}}), not via a client registration.
 The assertion carries the Agent's Properties ({{properties}}), and the
 Authorization Server MUST make them available to the Resource Server's
-authorization decision.  Authorization Servers supporting this profile MUST
-include urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported
+authorization decision.
+
+Authorization Servers supporting this profile MUST
+include `urn:ietf:params:oauth:grant-type:jwt-bearer` in `grant_types_supported`
 in their metadata {{RFC8414}}.
 
 {{fig-token-request}} shows an example token request (with extra line
@@ -301,7 +323,7 @@ in that request; namespace, groups, roles, and ctx are Agent Properties
 ~~~
 {: #fig-assertion-claims title="Example assertion claims"}
 
-No refresh tokens are issued; access tokens are short-lived and
+The authorization server MUST NOT issue refresh tokens, as access tokens are short-lived and
 audience-restricted {{RFC8707}}.  Assertion lifetimes SHOULD be as short as
 system availability constraints allow.
 
