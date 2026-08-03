@@ -1,9 +1,9 @@
 ---
-title: "Workload Authorization Grant for Agent Platforms"
+title: "Workload Authorization Grant"
 abbrev: "WAG"
 category: info
 
-docname: draft-carleton-wag-latest
+docname: draft-carleton-workload-authz-grant-latest
 submissiontype: IETF
 number:
 date:
@@ -18,7 +18,7 @@ venue:
   group: WIMSE
   type: Working Group
   mail: wimse@ietf.org
-  github: pcarleton/draft-carleton-wag
+  github: pcarleton/draft-carleton-workload-authz-grant
 
 author:
  -
@@ -81,7 +81,7 @@ presenting a JWT authorization grant (RFC 7523), signed by the platform's
 per-tenancy issuer, in the assertion parameter at the authorization server protecting the
 resource server.  Trust is established once, by reference to the
 issuer's published metadata and keys; agent creation requires no per-agent
-step at the resource server; and authorization is expressed over
+step at the authorization server or resource server; and authorization is expressed over
 platform-asserted agent properties that resource servers map locally to
 permissions.  This profile addresses agents acting on their own behalf;
 access on behalf of a user or other principal is out of scope, though the
@@ -97,7 +97,7 @@ represent a position or roadmap of the author's employer.  Every aspect of it
 is subject to change or withdrawal, including whether this profile should
 exist as a separate document at all.  Most sections are placeholders.  Issues
 and pull requests:
-https://github.com/pcarleton/draft-carleton-wag.
+https://github.com/pcarleton/draft-carleton-workload-authz-grant.
 
 --- middle
 
@@ -122,7 +122,11 @@ extension {{MCP-WIF}} defines the corresponding wire mechanics for MCP servers; 
 profile is intended to be interoperable with it.
 
 This document specifies a profile of {{AIMS}} for that deployment pattern.
-The mechanism is called the Workload Authorization Grant (WAG): a
+Agent platforms are the motivating deployment, and the terminology
+throughout uses "Agent"; the mechanism itself is not agent-specific and
+applies to any platform hosting workloads that need federated access to
+third-party resource servers.  The mechanism is called the Workload
+Authorization Grant (WAG): a
 platform-signed JWT authorization grant asserting a workload's identity and
 platform-asserted properties.  Trust in the platform's issuer is
 established once, by reference, and thereafter agents are accepted on first
@@ -155,8 +159,8 @@ profile constrains {{AIMS}} as follows:
 TODO.  A reader arriving from WIMSE or SPIFFE will ask where the Workload
 Identity Token and the SPIFFE ID are in this design.  Explain: why the
 assertion is an {{RFC7523}} authorization grant rather than a WIMSE WIT;
-whether the Agent Identifier can be, or deliberately is not, a {{WIMSE-ID}}
-identifier; and what changes if the Platform's issuer is backed by a
+how the Agent Identifier's RECOMMENDED {{WIMSE-ID}} URI form relates to a
+SPIFFE ID; and what changes if the Platform's issuer is backed by a
 SPIFFE/WIMSE-style workload identity plane rather than operated as a
 standalone OAuth issuer.
 
@@ -253,21 +257,22 @@ than fully specifying it ({{oi}}).
 The following claims are used within the Workload Authorization Grant JWT:
 
 `iss`:
-: REQUIRED - The issuer identifier ({{RFC8414}}) of the Agent Platform.
+: REQUIRED - The issuer identifier of the Platform's per-tenancy issuer
+  ({{trust}}).
 
 `sub`:
 : REQUIRED - The Agent Identifier as defined in {{identity-model}}.
 
 `aud`:
-: REQUIRED - Both the Authorization Server's
-  issuer identifier and its token endpoint URL. An Authorization Server
+: REQUIRED. The value SHOULD include both the Authorization Server's
+  issuer identifier and its token endpoint URL; an Authorization Server
   supporting this profile MUST accept an assertion whose `aud` includes either
   value ({{RFC7523}} itself leaves the audience strings to out-of-band
   configuration).  {{RFC7523BIS}} adds the issuer identifier as an audience
   option for authorization grants (while restricting client-authentication
   assertions, a different slot, to it alone); carrying both values keeps an
   assertion valid across deployed and future processing.
-  
+
 `jti`:
 : REQUIRED - Unique ID of this JWT as defined in {{Section 4.1.7 of RFC7519}}.
 
@@ -303,8 +308,8 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
 {: #fig-token-request title="Example token request"}
 
 {{fig-assertion-claims}} shows the decoded claims of the assertion carried
-in that request; namespace, groups, roles, and ctx are Agent Properties
-({{properties}}):
+in that request; name, namespace, groups, roles, and ctx are Agent
+Properties ({{properties}}):
 
 ~~~
 {
@@ -324,7 +329,7 @@ in that request; namespace, groups, roles, and ctx are Agent Properties
 ~~~
 {: #fig-assertion-claims title="Example assertion claims"}
 
-The authorization server MUST NOT issue refresh tokens, as access tokens are short-lived and
+The Authorization Server MUST NOT issue refresh tokens, as access tokens are short-lived and
 audience-restricted {{RFC8707}}.  Assertion lifetimes SHOULD be as short as
 system availability constraints allow.
 
@@ -338,22 +343,23 @@ PoP JWT) if agent instances hold keys.
 The Customer Administrator once records, at the Authorization Server, an
 allowlist entry binding one issuer to one tenancy: the issuer identifier, from which
 the issuer's metadata and JWK Set location are discovered per
-{{OIDC-DISCOVERY}} (retrieved over https {{RFC9525}}), and the initial
-mapping from Properties to permissions ({{properties}}).  Establishment is by
+{{OIDC-DISCOVERY}} (retrieved over https {{RFC9525}}), and the tenancy's initial
+Property-to-permission mapping for the Resource Server ({{properties}}).  Establishment is by
 reference; no keys or secrets are transferred, and key rotation is by JWK Set
 update alone.  Platforms serving multiple customers MUST use a distinct
 issuer per tenancy: the issuer is the trust boundary the allowlist expresses,
 and a shared issuer would move tenancy enforcement into claim evaluation at
 every Authorization Server -- including relying parties that can evaluate
 only subject and audience ({{oi}}).  The proposed MCP Workload Identity
-Federation extension {{MCP-WIF}} makes per-tenant signing keys a SHOULD for
-authorization servers; this profile deliberately tightens that boundary to a
+Federation extension {{MCP-WIF}} recommends (SHOULD) that authorization
+servers rely only on issuing keys bound to a single tenant; this profile deliberately tightens that boundary to a
 per-tenancy issuer MUST.
 
 Multi-issuer operation is scoped by issuer throughout.  An Authorization
 Server MUST resolve and cache keys per allowlist entry and MUST NOT merge
-key sets across issuers, and it MUST interpret sub, jti, and the
-property-to-permission mapping only within the scope of the presenting iss.
+key sets across issuers, and it MUST interpret sub and jti only within the scope of the presenting
+iss.  A Resource Server that keeps a Property-to-permission mapping
+({{properties}}) likewise scopes it by iss.
 An Agent Identifier is unique within its issuer, not globally: policy and
 audit records are keyed on the (iss, sub) pair, or on the complete URI-form
 identifier, which carries the tenancy in its authority component.
@@ -393,8 +399,8 @@ authorization.  Deny semantics do not travel.  TODO: worked example.
 
 # Attribution
 
-TODO.  Resource Servers log the Agent Identifier (sub), referenced
-Properties, and jti; internal fan-out via {{TXN-TOKENS}} rather than
+TODO.  The Authorization Server logs jti at token issuance; Resource
+Servers log the Agent Identifier (sub) and referenced Properties; internal fan-out via {{TXN-TOKENS}} rather than
 forwarding the access token.
 
 # Retirement and Lifecycle {#lifecycle}
@@ -452,8 +458,8 @@ This document has no IANA actions at this time; provisional claim names
 # Acknowledgments
 {:numbered="false"}
 
-The author thanks Kevin Kelley, Aaron Parecki, Brian Campbell, Nick
-Steele, Emily Lauber, and Maxwell Gerber for discussions that shaped this
+The author thanks Kevin Kelley, Aaron Parecki, Brian Campbell, Pieter
+Kasselman, Nick Steele, Emily Lauber, and Maxwell Gerber for discussions that shaped this
 document.  This profile builds directly on the Agent Identity Management
 System framework {{AIMS}} and would not exist without it.  Further
 acknowledgments will be added in a future revision.

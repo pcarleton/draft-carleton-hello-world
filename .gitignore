@@ -18,7 +18,7 @@
 /versioned/
 Gemfile.lock
 archive.json
-draft-carleton-wag.xml
+draft-carleton-workload-authz-grant.xml
 package-lock.json
 report.xml
 !requirements.txt

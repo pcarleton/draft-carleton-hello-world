@@ -1,11 +1,11 @@
 # Decision log
 
-Design decisions for draft-carleton-wag, with the alternatives considered.
+Design decisions for draft-carleton-workload-authz-grant, with the alternatives considered.
 Most recent first within each state. Open items are at the bottom.
 
 ## Decided
 
-### D12 — Mechanism name: Workload Authorization Grant (WAG); docname draft-carleton-wag (2026-08-03)
+### D12 — Mechanism name: Workload Authorization Grant (WAG); docname draft-carleton-workload-authz-grant (2026-08-03)
 Supersedes D1 and D2. Pieter Kasselman's critique of JIF: "just-in-time"
 misleads (federation is established ahead of time; only per-workload
 registration is removed). WAG names the actual artifact (the RFC 7523
