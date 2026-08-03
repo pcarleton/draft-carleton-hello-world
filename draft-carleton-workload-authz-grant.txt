@@ -37,11 +37,6 @@ About This Document
    https://datatracker.ietf.org/doc/draft-carleton-workload-authz-
    grant/.
 
-   Discussion of this document takes place on the WIMSE Working Group
-   mailing list (mailto:wimse@ietf.org), which is archived at
-   https://mailarchive.ietf.org/arch/browse/wimse/.  Subscribe at
-   https://www.ietf.org/mailman/listinfo/wimse/.
-
    Source for this draft and an issue tracker can be found at
    https://github.com/pcarleton/draft-carleton-workload-authz-grant.
 
