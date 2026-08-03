@@ -24,8 +24,12 @@ jobs:
         fetch-tags: true
 
     # See https://github.com/actions/checkout/issues/290
+    # actions/checkout dereferences annotated tags; force-fetch tags to
+    # restore annotations. Use --tags (not the triggering ref) so this
+    # also works on workflow_dispatch, where github.ref is the checked-out
+    # branch and force-fetching it into itself fails.
     - name: "Get Tag Annotations"
-      run: git fetch -f origin ${{ github.ref }}:${{ github.ref }}
+      run: git fetch --tags --force origin
 
     - name: "Setup"
       id: setup
