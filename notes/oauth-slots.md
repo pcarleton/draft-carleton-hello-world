@@ -1,6 +1,6 @@
 # The two JWT slots at the token endpoint
 
-Working notes for how JIF's authorization grant relates to the
+Working notes for how WAG's authorization grant relates to the
 near-identical-looking client-authentication JWTs (private_key_jwt,
 attestation-based client auth, SPIFFE client auth). Not part of the draft;
 kept here so we can decide later what to incorporate.
@@ -25,9 +25,9 @@ POST /token
 
 The slots are orthogonal. A request can carry either or both.
 
-## Where JIF sits
+## Where WAG sits
 
-JIF uses only the GRANT slot: the platform (or an IdP) signs JWT A with
+WAG uses only the GRANT slot: the platform (or an IdP) signs JWT A with
 sub = the Agent Identifier. The agent is the SUBJECT of the grant, not the
 OAuth client, which is why the draft attaches no semantics to client_id
 (decision D4). Confusion risk: oauth-spiffe-client-auth puts a
@@ -45,7 +45,7 @@ answered. The draft should eventually state this in one paragraph.
 | 4 | Grant + DPoP (RFC 9449) | Issued ACCESS TOKEN is sender-constrained end to end | RS must validate DPoP proofs -- breaks "only the token endpoint changes" |
 | 5 | Grant carrying cnf (instance key) + AS requires matching DPoP proof at the token endpoint | Binds the assertion itself AND the issued token to the instance key | Not an off-the-shelf AS behavior; needs profile text |
 
-Rows 2 and 3 live in the CLIENT AUTH slot and compose with the JIF grant
+Rows 2 and 3 live in the CLIENT AUTH slot and compose with the WAG grant
 rather than competing with it. Row 4/5 add sender-constraint on top of any
 of the others.
 

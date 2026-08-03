@@ -23,7 +23,7 @@
 <body>
 <h1>the client-model question: agent = OAuth client vs agent = grant subject</h1>
 <p class="intro">The most contentious design question in
-<a href="draft-carleton-jif.html">draft-carleton-jif</a>: does each agent
+<a href="draft-carleton-wag.html">draft-carleton-wag</a>: does each agent
 instance get its own client_id and authenticate in the client-auth slot
 (left column, <span style="color:#c792ea">agent&nbsp;=&nbsp;client</span>),
 or does the agent stay the subject of the platform-signed authorization
@@ -43,7 +43,7 @@ arguments: decision-log O4 in the repo.</p>
 <div class="cols">
 <div class="col">
 <h2 class="mclient">agent = OAuth client</h2>
-<p class="scenario">Support Triage Agent 7f3d9a2e, hosted by Acme's tenancy on the platform, fetches tickets from its own store at api.saas.example. No user in the loop. The admin has one allowlist row at as.saas.example: client_id prefix https://acme.agents.platform.example/ vouched by attester issuer https://acme.agents.platform.example (keys via the same OIDC-discovery JWKS the current JIF draft already fetches).</p>
+<p class="scenario">Support Triage Agent 7f3d9a2e, hosted by Acme's tenancy on the platform, fetches tickets from its own store at api.saas.example. No user in the loop. The admin has one allowlist row at as.saas.example: client_id prefix https://acme.agents.platform.example/ vouched by attester issuer https://acme.agents.platform.example (keys via the same OIDC-discovery JWKS the current WAG draft already fetches).</p>
 <pre>POST /token HTTP/1.1
 Host: as.saas.example
 Content-Type: application/x-www-form-urlencoded
@@ -93,7 +93,7 @@ Issued access token (RFC 9068 shape):
   "namespace": "acme/support",
   "roles": ["responder"]
 }</pre>
-<p class="commentary">Same admin surface as JIF today: one allowlist row per tenancy, keys by reference. The AS validates the attestation signature from the cached tenancy JWKS, prefix-matches sub against the allowlist, verifies the PoP against cnf, checks jti replay (ATTEST s11.1), and never fetches anything per-agent. The agent Properties ride in the attestation and map to permissions exactly as the draft's Properties section intends; nothing about that design is lost. Note what this buys over the JIF bearer grant with zero extra admin work: a stolen request body is useless because issuance requires the instance-held cnf key, which is O1's hardened mode arrived at by construction rather than by a bolted-on binding rule.</p>
+<p class="commentary">Same admin surface as WAG today: one allowlist row per tenancy, keys by reference. The AS validates the attestation signature from the cached tenancy JWKS, prefix-matches sub against the allowlist, verifies the PoP against cnf, checks jti replay (ATTEST s11.1), and never fetches anything per-agent. The agent Properties ride in the attestation and map to permissions exactly as the draft's Properties section intends; nothing about that design is lost. Note what this buys over the WAG bearer grant with zero extra admin work: a stolen request body is useless because issuance requires the instance-held cnf key, which is O1's hardened mode arrived at by construction rather than by a bolted-on binding rule.</p>
 </div>
 <div class="col">
 <h2 class="msubject">agent = grant subject (current draft)</h2>
@@ -144,7 +144,7 @@ OAuth-Client-Attestation-PoP: eyJ0eXAiOiJvYXV0aC1jbGllbnQtYXR0ZXN0YXRpb24tcG9wK2
 }
 (signature: instance-held cnf key)
 
-Binding rule (JIF profile text, one sentence): assertions from allowlisted issuer I are accepted only on requests authenticated by I's attested client, and the AS MAY require the attestation to cover the presenting instance.
+Binding rule (WAG profile text, one sentence): assertions from allowlisted issuer I are accepted only on requests authenticated by I's attested client, and the AS MAY require the attestation to cover the presenting instance.
 
 Issued access token (both variants):
 {
@@ -227,7 +227,7 @@ Access token claims:
   "scope": "email.read",
   "exp": 1785272280
 }</pre>
-<p class="commentary">Zero inventions: this is authorization_code plus PKCE plus CIMD, as deployed. The consent screen names the individual agent, which is more honest than consenting to a platform writ large; the grant is revocable at one row; the refresh token keeps access alive across the agent's weeks-long life and dies when the platform stops publishing the agent's key (CIMD s8.4.1 permits token revocation on key change), giving retirement (D10) an enforcement point. Under JIF as drafted this scenario has no wire form: an authorization request requires a client_id and the agent is not one, so 'grant MY email to THAT agent' cannot be expressed, which is the author's own convenience observation turned into a requirement.</p>
+<p class="commentary">Zero inventions: this is authorization_code plus PKCE plus CIMD, as deployed. The consent screen names the individual agent, which is more honest than consenting to a platform writ large; the grant is revocable at one row; the refresh token keeps access alive across the agent's weeks-long life and dies when the platform stops publishing the agent's key (CIMD s8.4.1 permits token revocation on key change), giving retirement (D10) an enforcement point. Under WAG as drafted this scenario has no wire form: an authorization request requires a client_id and the agent is not one, so 'grant MY email to THAT agent' cannot be expressed, which is the author's own convenience observation turned into a requirement.</p>
 </div>
 <div class="col">
 <h2 class="msubject">agent = grant subject (current draft)</h2>
@@ -295,9 +295,9 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange
 &amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
 &amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
 
-actor_token = the agent's ordinary JIF assertion, byte-for-byte the shape from counter-example 1 (iss=tenancy issuer, sub=wimse://.../agent/7f3d9a2e, aud=https://as.mailco.example, fresh exp/iat/jti, Properties).
+actor_token = the agent's ordinary WAG assertion, byte-for-byte the shape from counter-example 1 (iss=tenancy issuer, sub=wimse://.../agent/7f3d9a2e, aud=https://as.mailco.example, fresh exp/iat/jti, Properties).
 
-AS enforcement (the JIF grant-binding rule): actor_token verifies under the allowlisted issuer AND actor_token.sub == grant G's consented agent AND subject_token belongs to G. Any mismatch: invalid_grant.
+AS enforcement (the WAG grant-binding rule): actor_token verifies under the allowlisted issuer AND actor_token.sub == grant G's consented agent AND subject_token belongs to G. Any mismatch: invalid_grant.
 
 Issued access token:
 {
@@ -312,7 +312,7 @@ Issued access token:
   },
   "exp": 1785272280
 }</pre>
-<p class="commentary">Consent names the individual agent (the advocate's 'no wire form at all' is false -- RFC 9396 is the wire form, an RFC deployed in FAPI 2 ecosystems, vs their stack of three pre-RFC drafts). Paul's security page lists ONE app with per-agent grant rows underneath -- structural family grouping, no prefix-parsing of client_id, no thousand-corpse client list. Revocation is one grant row. Retirement beats the advocate's: access dies deterministically at the next exchange when the platform stops signing the agent's assertions (JIF's cessation semantics), versus CIMD s8.4.1's discretionary MAY firing on an eventual metadata re-fetch. The refresh token lives with the durable confidential tenancy client, so no instance-key escrow problem. Honest cost, conceded: the actor_token-matches-consented-agent binding is JIF profile text still to be written, and token exchange with actor_token is not universal in deployed ASes -- but it is registered RFC 8693 grammar, and the advocate's alternative needs ATTEST+CIMD support that is strictly rarer.</p>
+<p class="commentary">Consent names the individual agent (the advocate's 'no wire form at all' is false -- RFC 9396 is the wire form, an RFC deployed in FAPI 2 ecosystems, vs their stack of three pre-RFC drafts). Paul's security page lists ONE app with per-agent grant rows underneath -- structural family grouping, no prefix-parsing of client_id, no thousand-corpse client list. Revocation is one grant row. Retirement beats the advocate's: access dies deterministically at the next exchange when the platform stops signing the agent's assertions (WAG's cessation semantics), versus CIMD s8.4.1's discretionary MAY firing on an eventual metadata re-fetch. The refresh token lives with the durable confidential tenancy client, so no instance-key escrow problem. Honest cost, conceded: the actor_token-matches-consented-agent binding is WAG profile text still to be written, and token exchange with actor_token is not universal in deployed ASes -- but it is registered RFC 8693 grammar, and the advocate's alternative needs ATTEST+CIMD support that is strictly rarer.</p>
 </div>
 </div>
 </div><div class="tabbody" id="tab-obo">
@@ -369,11 +369,11 @@ AS checks per IDJAG s4.4.1: ID-JAG signature against allowlisted idp.acme.exampl
   "scope": "tickets.write",
   "exp": 1785272280
 }</pre>
-<p class="commentary">Two authorities, two artifacts, two slots: the IdP signs the statement about Paul, the platform signs the statement about the agent, and the AS composes them; neither party testifies outside its competence. The issued token carries who it is about (sub) and who acted (client_id) in fields every RS and SIEM already reads, with no act chain needed for the single-hop case; genuine multi-hop delegation still nests via RFC 8693 s4.1 on top. JIF as drafted cannot run this flow at all: s4.4.1's mandatory client_id match has nothing to match on an unauthenticated request, and the D4 fallback (platform authenticates as THE client) makes the ID-JAG name the platform, erasing the individual agent from the one flow where a human is on the hook. IdP-side client registration is handled by CIMD as a shared global client_id namespace, per IDJAG s5.7 verbatim.</p>
+<p class="commentary">Two authorities, two artifacts, two slots: the IdP signs the statement about Paul, the platform signs the statement about the agent, and the AS composes them; neither party testifies outside its competence. The issued token carries who it is about (sub) and who acted (client_id) in fields every RS and SIEM already reads, with no act chain needed for the single-hop case; genuine multi-hop delegation still nests via RFC 8693 s4.1 on top. WAG as drafted cannot run this flow at all: s4.4.1's mandatory client_id match has nothing to match on an unauthenticated request, and the D4 fallback (platform authenticates as THE client) makes the ID-JAG name the platform, erasing the individual agent from the one flow where a human is on the hook. IdP-side client registration is handled by CIMD as a shared global client_id namespace, per IDJAG s5.7 verbatim.</p>
 </div>
 <div class="col">
 <h2 class="msubject">agent = grant subject (current draft)</h2>
-<p class="scenario">Acme runs idp.acme.example and has registered ONE SSO relying party: the platform tenancy app (this is how enterprise SSO actually works -- admins register applications, not hours-old agent instances). Paul asks the agent to file tickets as him at saas.example. The platform obtains an ID-JAG by token exchange, presenting Paul's ID token as subject_token and the agent's JIF assertion as actor_token (RFC 8693 s2.1: 'a security token that represents the identity of the acting party'), then redeems it at the resource AS. Three authorities each sign only what they know: IdP about Paul and the delegation, platform about the agent, tenancy key about the caller.</p>
+<p class="scenario">Acme runs idp.acme.example and has registered ONE SSO relying party: the platform tenancy app (this is how enterprise SSO actually works -- admins register applications, not hours-old agent instances). Paul asks the agent to file tickets as him at saas.example. The platform obtains an ID-JAG by token exchange, presenting Paul's ID token as subject_token and the agent's WAG assertion as actor_token (RFC 8693 s2.1: 'a security token that represents the identity of the acting party'), then redeems it at the resource AS. Three authorities each sign only what they know: IdP about Paul and the delegation, platform about the agent, tenancy key about the caller.</p>
 <pre>Step 1, token exchange at the enterprise IdP (IDJAG-04 s4.3 over RFC 8693):
 POST /token HTTP/1.1
 Host: idp.acme.example
@@ -401,7 +401,7 @@ subject_token decoded (Paul's ID token -- aud is the SSO app Acme's admin ACTUAL
 }
 (signature: enterprise IdP key)
 
-actor_token decoded (the agent's ordinary JIF assertion, unchanged shape, moved to the registered actor slot):
+actor_token decoded (the agent's ordinary WAG assertion, unchanged shape, moved to the registered actor slot):
 {
   "iss": "https://acme.agents.platform.example",
   "sub": "wimse://acme.agents.platform.example/agent/7f3d9a2e",
@@ -412,7 +412,7 @@ actor_token decoded (the agent's ordinary JIF assertion, unchanged shape, moved 
   "name": "Support Triage Agent",
   "namespace": "acme/support"
 }
-(signature: tenancy issuer key; the IdP trusts this issuer by the same one-row-per-tenancy allowlist JIF already defines)
+(signature: tenancy issuer key; the IdP trusts this issuer by the same one-row-per-tenancy allowlist WAG already defines)
 
 Returned ID-JAG (IDJAG s3.1 claims; act emitted per RFC 8693 s4.1 semantics native to the exchange that minted it -- actor_token in, act out):
 {"typ":"oauth-id-jag+jwt","alg":"ES256","kid":"idp-2026-06"}
@@ -445,7 +445,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
 &amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer
 &amp;client_assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6InRlbmFuY3ktMjAyNi0wNyJ9...
 
-AS checks per IDJAG s4.4.1: ID-JAG signature against allowlisted idp.acme.example, and the client_id claim (https://acme.agents.platform.example/) equals the authenticated client. MATCH -- the check the advocate said JIF cannot satisfy is satisfied, with the agent intact in act.
+AS checks per IDJAG s4.4.1: ID-JAG signature against allowlisted idp.acme.example, and the client_id claim (https://acme.agents.platform.example/) equals the authenticated client. MATCH -- the check the advocate said WAG cannot satisfy is satisfied, with the agent intact in act.
 
 Issued access token:
 {
@@ -460,13 +460,13 @@ Issued access token:
   },
   "exp": 1785272280
 }</pre>
-<p class="commentary">This is the McGuinness ai-agent-instance Appendix B token shape verbatim ('alice@example.com via agent instance sess-9f2c'): user in sub, agent in act.sub, client_id = the application -- each field keeping its RFC-defined meaning, with the audit question answered by the two fields RFC 8693 registered for exactly principal-vs-actor. Contrast the advocate's version, which requires Paul's ID token to carry aud = an hours-old per-agent URL: no enterprise IdP issues that, so their flow needs either per-agent SSO registration (violating JIF's Instantiation MUST NOT, and DCR-at-the-IdP) or blanket origin trust (the same tenancy row JIF already has, gaining nothing). Multi-hop chaining stays clean: agent A handing to agent B nests act per RFC 8693 s4.1, with no bogus first link, because the caller (platform client) was never in the chain. Conceded gap: IDJAG-04 does not yet specify act in the ID-JAG, so this needs a one-line interop note or IDJAG extension -- smaller and better-precedented than the advocate's dependence on unshipped ATTEST transports plus IdPs resolving CIMD client_ids (their own weakest_points #7).</p>
+<p class="commentary">This is the McGuinness ai-agent-instance Appendix B token shape verbatim ('alice@example.com via agent instance sess-9f2c'): user in sub, agent in act.sub, client_id = the application -- each field keeping its RFC-defined meaning, with the audit question answered by the two fields RFC 8693 registered for exactly principal-vs-actor. Contrast the advocate's version, which requires Paul's ID token to carry aud = an hours-old per-agent URL: no enterprise IdP issues that, so their flow needs either per-agent SSO registration (violating WAG's Instantiation MUST NOT, and DCR-at-the-IdP) or blanket origin trust (the same tenancy row WAG already has, gaining nothing). Multi-hop chaining stays clean: agent A handing to agent B nests act per RFC 8693 s4.1, with no bogus first link, because the caller (platform client) was never in the chain. Conceded gap: IDJAG-04 does not yet specify act in the ID-JAG, so this needs a one-line interop note or IDJAG extension -- smaller and better-precedented than the advocate's dependence on unshipped ATTEST transports plus IdPs resolving CIMD client_ids (their own weakest_points #7).</p>
 </div>
 </div>
 </div>
 
 <h1 style="margin-top:28px">what the draft owes regardless of the outcome</h1>
-<ul class="debts"><li>The IDJAG pointer is a live internal inconsistency: the draft's Scope section points on-behalf-of at IDJAG while D4 permits fully unauthenticated token requests, and IDJAG s4.4.1 has nothing to match on an unauthenticated request. The draft owes one normative sentence: in the IDJAG/Enterprise-IdP composition the Platform MUST authenticate as an OAuth client (D4's own reserved composition), and the agent's identity travels as act (via actor_token at the exchange). The advocate correctly caught an unclosed loop the current text leaves dangling.</li><li>Per-agent user consent has no enforcement rule in JIF today. The wire form exists (RFC 9396 authorization_details naming the agent; grant recorded against (user, tenancy client, agent (iss,sub))), but the binding rule — 'this grant is redeemable only alongside a fresh assertion whose sub matches the consented agent' — is unwritten profile text, and no off-the-shelf AS enforces it. Until that rule is drafted, 'grant MY email to THAT agent' is expressible but not enforceable under agent-as-subject, and the author's convenience scenario should be promoted from framing-note to a named Open Issue.</li><li>(iss, sub)-keyed management machinery is new build. Per-agent quotas, kill switches, token listing, and grant dashboards keyed on the agent identifier do not exist in any deployed AS, and the draft currently implies zero cost beyond the token endpoint. Honest text: adopting ASes that want per-agent operational controls build them against (iss, sub); the draft should also add at least a SHOULD for client authentication in production deployments, since an unauthenticated floor leaves the AS with no caller identity to throttle or kill — exactly the case O1's refinement already flags as load-bearing.</li><li>Token-shape ambiguity cuts against JIF too: RS code that assumes sub is always a human will misclassify JIF's self-access tokens (sub = agent identifier). The draft should adopt a disambiguator — a sub_profile-style claim as in McGuinness ai-agent-instance s8, or normative reliance on the URI-form identifier's authority component — rather than leaving RSes to guess. The advocate's two-shapes critique applies to their design AND to the ecosystem-converged sub/act.sub split JIF should adopt for OBO; JIF owes its half of the answer.</li><li>The Relationship-to-WIMSE/SPIFFE section (O3) is still a TODO, and until it exists the draft recommends WIMSE identifiers while declining SPIFFE-style client authentication without stating why. The slot argument (subject-granularity instance identity vs family-granularity client identity) is sound but currently lives in a notes file, not the draft; the advocate is right that a security reviewer will press exactly here.</li><li>The advocate's adoption-floor concession deserves being banked, not gloated over: their weakest_points #1 grants that D3's adoption argument survives ('JIF as drafted is a config change at the token endpoint... this trades away time-to-first-deployment'). The debate is genuinely between shipping into the deployed ecosystem now versus building for a paper end state; the draft should say it is consciously choosing the former and name the migration path (hybrid options) so the choice reads as staged, not blinkered.</li></ul>
+<ul class="debts"><li>The IDJAG pointer is a live internal inconsistency: the draft's Scope section points on-behalf-of at IDJAG while D4 permits fully unauthenticated token requests, and IDJAG s4.4.1 has nothing to match on an unauthenticated request. The draft owes one normative sentence: in the IDJAG/Enterprise-IdP composition the Platform MUST authenticate as an OAuth client (D4's own reserved composition), and the agent's identity travels as act (via actor_token at the exchange). The advocate correctly caught an unclosed loop the current text leaves dangling.</li><li>Per-agent user consent has no enforcement rule in WAG today. The wire form exists (RFC 9396 authorization_details naming the agent; grant recorded against (user, tenancy client, agent (iss,sub))), but the binding rule — 'this grant is redeemable only alongside a fresh assertion whose sub matches the consented agent' — is unwritten profile text, and no off-the-shelf AS enforces it. Until that rule is drafted, 'grant MY email to THAT agent' is expressible but not enforceable under agent-as-subject, and the author's convenience scenario should be promoted from framing-note to a named Open Issue.</li><li>(iss, sub)-keyed management machinery is new build. Per-agent quotas, kill switches, token listing, and grant dashboards keyed on the agent identifier do not exist in any deployed AS, and the draft currently implies zero cost beyond the token endpoint. Honest text: adopting ASes that want per-agent operational controls build them against (iss, sub); the draft should also add at least a SHOULD for client authentication in production deployments, since an unauthenticated floor leaves the AS with no caller identity to throttle or kill — exactly the case O1's refinement already flags as load-bearing.</li><li>Token-shape ambiguity cuts against WAG too: RS code that assumes sub is always a human will misclassify WAG's self-access tokens (sub = agent identifier). The draft should adopt a disambiguator — a sub_profile-style claim as in McGuinness ai-agent-instance s8, or normative reliance on the URI-form identifier's authority component — rather than leaving RSes to guess. The advocate's two-shapes critique applies to their design AND to the ecosystem-converged sub/act.sub split WAG should adopt for OBO; WAG owes its half of the answer.</li><li>The Relationship-to-WIMSE/SPIFFE section (O3) is still a TODO, and until it exists the draft recommends WIMSE identifiers while declining SPIFFE-style client authentication without stating why. The slot argument (subject-granularity instance identity vs family-granularity client identity) is sound but currently lives in a notes file, not the draft; the advocate is right that a security reviewer will press exactly here.</li><li>The advocate's adoption-floor concession deserves being banked, not gloated over: their weakest_points #1 grants that D3's adoption argument survives ('WAG as drafted is a config change at the token endpoint... this trades away time-to-first-deployment'). The debate is genuinely between shipping into the deployed ecosystem now versus building for a paper end state; the draft should say it is consciously choosing the former and name the migration path (hybrid options) so the choice reads as staged, not blinkered.</li></ul>
 
 <script>
   document.querySelectorAll('.tabs button[data-tab]').forEach(b => b.onclick = () => {

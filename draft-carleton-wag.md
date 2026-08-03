@@ -13,12 +13,12 @@ keyword:
  - agent identity
  - AIMS
  - workload identity
- - just-in-time identity federation
+ - workload authorization grant
 venue:
   group: WIMSE
   type: Working Group
   mail: wimse@ietf.org
-  github: pcarleton/draft-carleton-jif
+  github: pcarleton/draft-carleton-wag
 
 author:
  -
@@ -97,7 +97,7 @@ represent a position or roadmap of the author's employer.  Every aspect of it
 is subject to change or withdrawal, including whether this profile should
 exist as a separate document at all.  Most sections are placeholders.  Issues
 and pull requests:
-https://github.com/pcarleton/draft-carleton-jif.
+https://github.com/pcarleton/draft-carleton-wag.
 
 --- middle
 
@@ -122,10 +122,11 @@ extension {{MCP-WIF}} defines the corresponding wire mechanics for MCP servers; 
 profile is intended to be interoperable with it.
 
 This document specifies a profile of {{AIMS}} for that deployment pattern.
-The resulting mechanism is called Workload Authorization Grant (WAG):
-trust in an issuer is established once, by reference, and individual agents
-are provisioned at the resource server just in time, on first presentation,
-with no per-agent registration step.
+The mechanism is called the Workload Authorization Grant (WAG): a
+platform-signed JWT authorization grant asserting a workload's identity and
+platform-asserted properties.  Trust in the platform's issuer is
+established once, by reference, and thereafter agents are accepted on first
+presentation with no per-agent registration step.
 
 A design goal of this profile is a minimal adoption path for services that
 already operate an OAuth deployment: supporting it requires changes only at
@@ -252,7 +253,7 @@ than fully specifying it ({{oi}}).
 The following claims are used within the Workload Authorization Grant JWT:
 
 `iss`:
-: REQUIRED - The issuer identifier ({{RFC8414}} of the Agent Platform.
+: REQUIRED - The issuer identifier ({{RFC8414}}) of the Agent Platform.
 
 `sub`:
 : REQUIRED - The Agent Identifier as defined in {{identity-model}}.

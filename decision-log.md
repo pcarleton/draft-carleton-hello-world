@@ -1,9 +1,21 @@
 # Decision log
 
-Design decisions for draft-carleton-jif, with the alternatives considered.
+Design decisions for draft-carleton-wag, with the alternatives considered.
 Most recent first within each state. Open items are at the bottom.
 
 ## Decided
+
+### D12 — Mechanism name: Workload Authorization Grant (WAG); docname draft-carleton-wag (2026-08-03)
+Supersedes D1 and D2. Pieter Kasselman's critique of JIF: "just-in-time"
+misleads (federation is established ahead of time; only per-workload
+registration is removed). WAG names the actual artifact (the RFC 7523
+authorization grant), rhymes with ID-JAG whose role it parallels for
+workloads on their own behalf, avoids the "federation" term, and does not
+tie the mechanism to agents (agent platforms are the motivating deployment,
+not the scope). Brian Campbell concurred; Aaron Parecki adopted it and
+contributed the JWT claims subsection. Alternatives (re-)considered: WIF
+(most recognizable, but claims a term with variable wire semantics); A-WIF /
+WIFA (agent-tied); WAG (superseded per above).
 
 ### D11 — OBO is out of scope: gesture at actor-claim compatibility, specify nothing (2026-07-30)
 The abstract and Scope now state that the profile covers agents acting on
@@ -91,12 +103,12 @@ sub == client_id, which conflates the subject-of-the-grant with the
 client role). Chosen for the adoption goal: jwt-bearer is the one grant
 type every mainstream AS already implements.
 
-### D2 — docname and repo: draft-carleton-jif (2026-07-27)
+### D2 — [superseded by D12] docname and repo: draft-carleton-jif (2026-07-27)
 Short, speakable, matches how people will refer to it. Alternative:
 draft-carleton-aims-agent-platform (descriptive but unpronounceable in
 conversation).
 
-### D1 — Mechanism name: just-in-time identity federation (JIF) (2026-07-27)
+### D1 — [superseded by D12] Mechanism name: just-in-time identity federation (JIF) (2026-07-27)
 Criteria: pronounceable acronym; shape-legible to workload identity
 federation without being called WIF; modest namespace claim; names the
 mechanism (no registration step) rather than the audience.

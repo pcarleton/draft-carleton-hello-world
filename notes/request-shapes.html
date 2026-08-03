@@ -50,7 +50,7 @@
   <div class="delta">baseline shape -- nothing marked new</div>
   <div class="panel raw show">
 <pre>
-<span class="note">## 1. token request -- the JIF floor: bearer grant, no client identity</span>
+<span class="note">## 1. token request -- the WAG floor: bearer grant, no client identity</span>
 
 <span class="as">POST /token HTTP/1.1</span>
 Host: <span class="as">as.saas.example</span>
@@ -60,7 +60,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
 &amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
 &amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
 
-<span class="note">## 2. decoded: the JIF grant</span></pre>
+<span class="note">## 2. decoded: the WAG grant</span></pre>
 <pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
 .
 {
@@ -94,7 +94,7 @@ Authorization: Bearer eyJ...access.token...
 <pre>
 <span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
   |                           |                           |                     |
-  |&lt;- (0) JIF assertion ------|                           |                     |
+  |&lt;- (0) WAG assertion ------|                           |                     |
 <span class="dim">        one signed assertion per token request</span>
   |                           |                           |                     |
   |-- (1) POST /token: assertion + resource -------------&gt;|                     |
@@ -135,7 +135,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
 &amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
 &amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
 
-<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<span class="note">## 2. decoded: the WAG grant (unchanged)</span></pre>
 <pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
 .
 {
@@ -182,7 +182,7 @@ Host: <span class="rs">api.saas.example</span>
 <pre>
 <span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
   |                           |                           |                     |
-  |&lt;- (0) JIF assertion ------|                           |                     |
+  |&lt;- (0) WAG assertion ------|                           |                     |
   |                           |                           |                     |
   |-- (1) POST /token: assertion + DPoP proof#1 ---------&gt;|                     |
   |                           |                           |                     |
@@ -206,7 +206,7 @@ Host: <span class="rs">api.saas.example</span>
   <div class="panel raw show">
 <pre>
 <span class="note">## 1. token request -- the full stack: Platform authenticates as an
-## OAuth client (CIMD + private_key_jwt), carries the JIF grant, DPoP
+## OAuth client (CIMD + private_key_jwt), carries the WAG grant, DPoP
 ## binds the issued token. stays open for grant-issuer = Enterprise IdP.</span>
 
 <span class="as">POST /token HTTP/1.1</span>
@@ -215,13 +215,13 @@ Host: <span class="as">as.saas.example</span>
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
-&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># JIF grant (issuer could be the customer's IdP)</span>
+&amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># WAG grant (issuer could be the customer's IdP)</span>
 &amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
 <span class="new">&amp;<span class="attester">client_id=https%3A%2F%2Fagents.platform.example%2Foauth%2Fclient</span>   <span class="dim"># the CIMD URL</span></span>
 <span class="new">&amp;client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer</span>
 <span class="new">&amp;<span class="attester">client_assertion=eyJhbGciOiJFUzI1NiIs...</span> <span class="dim"># private_key_jwt, key published in the CIMD</span></span>
 
-<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<span class="note">## 2. decoded: the WAG grant (unchanged)</span></pre>
 <pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
 .
 {
@@ -257,7 +257,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
   "jwks": { "keys": [ { "kty":"EC", "kid":"platform-client-2026", ... } ] }
 }
 <span class="dim"># no registration step: the AS discovers the client by dereferencing
-# client_id. same by-reference trust move as the JIF issuer allowlist.</span></pre>
+# client_id. same by-reference trust move as the WAG issuer allowlist.</span></pre>
 <pre><span class="note">## 3. AS response</span>
 { "access_token": "eyJ...", "token_type": "DPoP", "expires_in": 900 }
 
@@ -276,7 +276,7 @@ Authorization: DPoP eyJ...access.token...
 <pre>
 <span class="client">Client</span>                    <span class="attester">Platform</span>                       <span class="as">AS</span>                    <span class="rs">RS</span>
   |                           |                           |                     |
-  |&lt;- (0) JIF assertion ------|                           |                     |
+  |&lt;- (0) WAG assertion ------|                           |                     |
   |                           |                           |                     |
   |-- (1) POST /token: client_id=CIMD-url + pkjwt -------&gt;|                     |
   |                           |                           |                     |
@@ -318,7 +318,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
 &amp;<span class="attester">assertion=eyJhbGciOiJFUzI1NiIs...</span>       <span class="dim"># signed by PLATFORM per-tenancy issuer</span>
 &amp;resource=https%3A%2F%2F<span class="rs">api.saas.example</span>%2F
 
-<span class="note">## 2. decoded: the JIF grant (unchanged)</span></pre>
+<span class="note">## 2. decoded: the WAG grant (unchanged)</span></pre>
 <pre class="jwt by-attester">{ "alg": "ES256", "kid": "2026-07-14", "typ": "JWT" }
 .
 {
@@ -348,7 +348,7 @@ grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer
   "aud": "<span class="as">https://as.saas.example</span>",
   "exp": 1785271980, "jti": "f81a..." }
 <span class="dim"># signed with the instance-held key that cnf above binds.
-# a stolen JIF assertion without this signature gets nothing.</span></pre>
+# a stolen WAG assertion without this signature gets nothing.</span></pre>
 <pre><span class="note">## 3. AS response</span>
 { "access_token": "eyJ...", "token_type": "Bearer", "expires_in": 900 }
 
@@ -367,7 +367,7 @@ Authorization: Bearer eyJ...access.token...</pre>
   |&lt;- (2) Attestation JWT ----|                           |                     |
 <span class="dim">        cnf = instance key</span>
   |                           |                           |                     |
-  |-- (3) POST /token: attestation hdrs + JIF grant -----&gt;|                     |
+  |-- (3) POST /token: attestation hdrs + WAG grant -----&gt;|                     |
   |                           |                           |                     |
 <span class="dim">            OAuth-Client-Attestation (attester-signed)</span>
   |                           |                           |                     |
@@ -391,7 +391,7 @@ Authorization: Bearer eyJ...access.token...</pre>
   participant RS as Resource Server
   C-&gt;&gt;P: (1) instance public key
   P-&gt;&gt;C: (2) Client Attestation JWT (cnf = instance key)
-  C-&gt;&gt;AS: (3) POST /token + attestation headers + JIF grant
+  C-&gt;&gt;AS: (3) POST /token + attestation headers + WAG grant
   AS-&gt;&gt;AS: (4) verify attester sig, PoP vs cnf, grant issuer allowlist
   AS-&gt;&gt;C: (5) access token (short-lived, aud = RS)
   C-&gt;&gt;RS: (6) request + Bearer token
